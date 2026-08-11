@@ -17,7 +17,10 @@ if [ ! -d "$APP" ]; then
   exit 1
 fi
 
-codesign --force --deep --sign - "$APP"
+# --options runtime keeps the hardened runtime the Release build enables;
+# a bare re-sign would silently strip it. No --deep: Xcode already signed
+# nested code, and --deep re-signs it incorrectly.
+codesign --force --options runtime --sign - "$APP"
 
 mkdir -p dist
 ZIP_PATH="dist/Skylight-${VERSION}.zip"

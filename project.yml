@@ -25,6 +25,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.anthony.skylight
         SWIFT_OBJC_BRIDGING_HEADER: Sources/SkylightSPI/CGVirtualDisplaySPI.h
+      configs:
+        # Release only: hardened runtime blocks library injection into a
+        # process that holds a standing Screen Recording grant. Debug stays
+        # unhardened so xcodebuild test can inject the test bundle.
+        Release:
+          ENABLE_HARDENED_RUNTIME: true
     info:
       path: Sources/Skylight/Info.plist
       properties:
