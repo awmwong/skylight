@@ -1,0 +1,8 @@
+--swiftversion 5.10
+--indent 4
+--maxwidth 110
+--wraparguments before-first
+--wrapcollections before-first
+--stripunusedargs closure-only
+--self remove
+--exclude build,Skylight.xcodeproj

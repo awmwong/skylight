@@ -1,0 +1,12 @@
+included:
+  - Sources
+  - Tests
+excluded:
+  - build
+line_length:
+  warning: 110
+  error: 140
+identifier_name:
+  min_length: 2
+disabled_rules:
+  - trailing_comma

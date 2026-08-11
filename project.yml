@@ -1,0 +1,50 @@
+name: Skylight
+options:
+  bundleIdPrefix: com.anthony
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    CODE_SIGN_IDENTITY: "-"
+targets:
+  Skylight:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/Skylight
+      - Sources/SkylightSPI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.anthony.skylight
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/SkylightSPI/CGVirtualDisplaySPI.h
+    info:
+      path: Sources/Skylight/Info.plist
+      properties:
+        CFBundleDisplayName: Skylight
+        LSUIElement: true
+        NSScreenCaptureUsageDescription: >-
+          Skylight captures the screen region you select so it can mirror it
+          onto the Skylight virtual display for sharing.
+  SkylightTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests/SkylightTests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+    dependencies:
+      - target: Skylight
+schemes:
+  Skylight:
+    build:
+      targets:
+        Skylight: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - SkylightTests
