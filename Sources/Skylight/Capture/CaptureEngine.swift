@@ -16,13 +16,16 @@ enum CaptureError: Error, Equatable {
 /// `SCShareableContent` and `SCStream` only get touched inside `start()`,
 /// which needs a live GUI session and Screen Recording permission. Unit
 /// tests must never call `start()`; they exercise `CaptureConfig` instead
-/// (see `CaptureConfigTests`). Live streaming is smoke-tested in T7.
+/// (see `CaptureConfigTests`).
 ///
-/// Not actor-isolated: `SCStreamOutput`/`SCStreamDelegate` callbacks arrive
-/// on queues ScreenCaptureKit chooses, and forwarding them into `frames`/
-/// `onError` is the only mutable state touched here.
+/// Threading: frame callbacks arrive on `sampleQueue` (kept off the main
+/// thread so frame delivery never waits behind UI work) and only touch the
+/// thread-safe `frameContinuation`. The mutable state (`region`, `stream`)
+/// is mutated only through `start`/`stop`/`updateRegion`, which the
+/// `@MainActor` `ShareSession` is the sole caller of.
 final class CaptureEngine: NSObject {
     private let logger = Logger(subsystem: CaptureConfig.excludedBundleIdentifier, category: "capture")
+    private let sampleQueue = DispatchQueue(label: "com.anthony.skylight.capture.frames")
 
     private var region: Region
     private let displayOrigin: CGPoint
@@ -55,7 +58,10 @@ final class CaptureEngine: NSObject {
         self.options = options
 
         var continuation: AsyncStream<CMSampleBuffer>.Continuation?
-        frames = AsyncStream { continuation = $0 }
+        // Only the newest frame matters for a live mirror: if the consumer
+        // stalls (modal alert, busy main thread), stale frames are dropped
+        // instead of queueing CVPixelBuffers without bound.
+        frames = AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation = $0 }
         super.init()
 
         frameContinuation = continuation
@@ -78,7 +84,7 @@ final class CaptureEngine: NSObject {
         currentConfig().apply(to: streamConfiguration)
 
         let newStream = SCStream(filter: filter, configuration: streamConfiguration, delegate: self)
-        try newStream.addStreamOutput(output, type: .screen, sampleHandlerQueue: .main)
+        try newStream.addStreamOutput(output, type: .screen, sampleHandlerQueue: sampleQueue)
         try await newStream.startCapture()
         stream = newStream
     }
