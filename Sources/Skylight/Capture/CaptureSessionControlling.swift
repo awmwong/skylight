@@ -9,7 +9,6 @@ protocol CaptureSessionControlling: AnyObject {
 
     func start() async throws
     func stop() async
-    func updateRegion(_ region: Region) async throws
 }
 
 extension CaptureEngine: CaptureSessionControlling {}

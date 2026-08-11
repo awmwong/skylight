@@ -18,7 +18,7 @@ final class AppServices {
     private init() {
         session = ShareSession(
             displayProvider: displayProvider,
-            selector: SelectionOverlayController(),
+            selector: SelectionOverlayController(initialRegionProvider: { Preferences.lastSharedRegion }),
             mirror: DisplayMirror(),
             captureFactory: { region, info, options in
                 CaptureEngine(
@@ -31,7 +31,8 @@ final class AppServices {
             sourceDisplayInfo: Self.sourceDisplayInfo,
             hasScreenRecordingPermission: { CGPreflightScreenCaptureAccess() },
             requestScreenRecordingPermission: { CGRequestScreenCaptureAccess() },
-            captureOptions: { CaptureOptions(showsCursor: Preferences.showsCursor) }
+            captureOptions: { CaptureOptions(showsCursor: Preferences.showsCursor) },
+            persistLastRegion: { Preferences.lastSharedRegion = $0 }
         )
         session.onUserFacingError = { [weak self] message in self?.presentError(message) }
 
@@ -43,7 +44,10 @@ final class AppServices {
     private func handleHotkey() {
         Task { @MainActor [weak self] in
             guard let self else { return }
-            switch HotkeyController.action(state: session.state, lastRegion: session.currentRegion) {
+            // Fall back to the persisted region so the hotkey can re-share
+            // right after a relaunch, before any share ran this session.
+            let lastRegion = session.currentRegion ?? Preferences.lastSharedRegion
+            switch HotkeyController.action(state: session.state, lastRegion: lastRegion) {
             case .stopSharing:
                 await session.stopSharing()
             case let .startSharing(region):
@@ -98,6 +102,8 @@ final class AppServices {
 /// `UserDefaults` suite instead of touching the user's real preferences.
 enum Preferences {
     private static let showsCursorKey = "showsCursor"
+    private static let lastSharedRegionKey = "lastSharedRegion"
+    private static let logger = Logger(subsystem: "com.anthony.skylight", category: "Preferences")
 
     static var defaults: UserDefaults = .standard
 
@@ -107,6 +113,34 @@ enum Preferences {
         }
         set {
             defaults.set(newValue, forKey: showsCursorKey)
+        }
+    }
+
+    /// The last region a share actually started with. The selection overlay
+    /// opens with it preselected, and the hotkey can re-share it after a
+    /// relaunch. Stored values cross a trust boundary on read, like presets,
+    /// so invalid regions are dropped.
+    static var lastSharedRegion: Region? {
+        get {
+            guard let stored = defaults.data(forKey: lastSharedRegionKey) else { return nil }
+            do {
+                let region = try JSONDecoder().decode(Region.self, from: stored)
+                return region.isValid ? region : nil
+            } catch {
+                logger.error("Failed to decode last shared region: \(error, privacy: .public)")
+                return nil
+            }
+        }
+        set {
+            guard let newValue else {
+                defaults.removeObject(forKey: lastSharedRegionKey)
+                return
+            }
+            do {
+                try defaults.set(JSONEncoder().encode(newValue), forKey: lastSharedRegionKey)
+            } catch {
+                logger.error("Failed to encode last shared region: \(error, privacy: .public)")
+            }
         }
     }
 }

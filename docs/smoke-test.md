@@ -26,7 +26,7 @@ Record results here:
 | 3a | Shareable in QuickTime | [ ] Pass  [ ] Fail |
 | 3b | Shareable in Zoom | [ ] Pass  [ ] Fail |
 | 3c | Shareable in Google Meet (Chrome) | [ ] Pass  [ ] Fail |
-| 4 | Live move/resize + letterbox | [ ] Pass  [ ] Fail |
+| 4 | Fixed viewport + last-viewport recall | [ ] Pass  [ ] Fail |
 | 5 | Presets save/recall/persist | [ ] Pass  [ ] Fail |
 | 6 | Global hotkey toggle | [ ] Pass  [ ] Fail |
 | 7 | Cursor include/exclude | [ ] Pass  [ ] Fail |
@@ -150,30 +150,25 @@ share picker and shows only the region's content to viewers.
 
 ---
 
-## 4. Live move/resize and letterboxing
+## 4. Fixed viewport and last-viewport recall
 
 **Setup:** Sharing is active (any app from check 3, or just QuickTime
-preview) with the selection overlay still visible.
+preview).
 
 **Steps:**
 
-1. While sharing, drag the region border to a new position on the same
-   display.
-2. Confirm the shared output updates within roughly a second, with no crash
-   or dropped share in the viewing app.
-3. Resize the region to a different aspect ratio than the virtual display's
-   current one (e.g., make a wide region much taller).
-4. Confirm the virtual display does **not** change resolution mid-share;
-   instead the live content letterboxes (black bars) inside the existing
-   virtual display frame.
-5. Stop sharing and start a fresh share with the new aspect ratio.
-6. Confirm the virtual display is recreated at the new exact size (no
-   letterbox needed) for the new share.
+1. Confirm the selection overlay is gone: no yellow border on screen, and
+   every window under the old selection is clickable as normal.
+2. Confirm the shared output keeps showing the confirmed region while you
+   work in other windows.
+3. Stop sharing from the menu bar icon. Select "Start Sharing…" again.
+4. Confirm the selection opens preselected at the viewport you just shared.
+5. Resize the selection to a different aspect ratio and start the share.
+6. Confirm the virtual display matches the new size exactly (no letterbox).
 
-**Expected result:** Moves/resizes during a share update the output live
-without breaking the app's share session. Aspect-ratio changes letterbox
-rather than resize the live virtual display. A new share picks up the exact
-new size.
+**Expected result:** Once a share starts, nothing stays on screen and no
+input is blocked. The viewport is fixed for the whole share. The next
+selection starts from the last shared viewport, also after an app relaunch.
 
 **Result:** [ ] Pass  [ ] Fail — Notes: _______________________
 

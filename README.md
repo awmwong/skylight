@@ -13,8 +13,9 @@ generic.
 
 ## Features
 
-- Movable, resizable selection border. The shared output follows your
-  changes live.
+- Movable, resizable selection border to pick the region. The viewport is
+  fixed once sharing starts, so nothing blocks your windows during a call.
+- The selection opens with your last shared viewport preselected.
 - Named region presets. Save a region once, recall it from the menu.
 - Global hotkey to start and stop sharing.
 - A setting to show or hide the cursor in the shared output.
@@ -26,8 +27,6 @@ generic.
 ScreenCaptureKit captures the selected region as a video stream. A
 borderless window fills the virtual display and renders the captured frames.
 Your conferencing app shares the virtual display like any physical screen.
-When you resize the region during a share, the display keeps its size and
-the output letterboxes.
 
 > [!CAUTION]
 > Skylight creates the virtual display with `CGVirtualDisplay`, a private
@@ -55,10 +54,12 @@ the output letterboxes.
 
 1. Click the Skylight icon in the menu bar. Select "Start Sharing…".
 2. Move and resize the yellow border until it covers the part you want to
-   share. Press Return, or click "Start Sharing".
+   share. Press Return, or click the "Start Sharing" button in its center.
+   The border disappears and the share is live.
 3. In your conferencing app, share the display named "Skylight Display".
-4. To adjust the shared part during a call, drag the border or its handles.
-5. To stop, press Esc on the border, or select "Stop Sharing" from the menu.
+4. To stop, select "Stop Sharing" from the menu bar icon (or press the
+   hotkey). To share a different part, stop and start a new share — the
+   viewport is fixed while a share runs.
 
 To save the current region as a preset, select "Save Current Region…" while
 a share runs. To set the hotkey and the cursor option, select "Settings…".

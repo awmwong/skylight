@@ -33,6 +33,29 @@ final class PreferencesTests: XCTestCase {
         Preferences.showsCursor = true
         XCTAssertTrue(Preferences.showsCursor)
     }
+
+    func testLastSharedRegionDefaultsToNil() {
+        XCTAssertNil(Preferences.lastSharedRegion)
+    }
+
+    func testLastSharedRegionRoundTripsThroughUserDefaults() {
+        let region = Region(displayID: 3, rect: CGRect(x: 10, y: 20, width: 640, height: 360))
+
+        Preferences.lastSharedRegion = region
+        XCTAssertEqual(Preferences.lastSharedRegion, region)
+
+        Preferences.lastSharedRegion = nil
+        XCTAssertNil(Preferences.lastSharedRegion)
+    }
+
+    func testLastSharedRegionDropsInvalidStoredValue() {
+        Preferences.lastSharedRegion = Region(
+            displayID: 3,
+            rect: CGRect(x: 0, y: 0, width: -640, height: 360)
+        )
+
+        XCTAssertNil(Preferences.lastSharedRegion)
+    }
 }
 
 @MainActor
@@ -107,8 +130,7 @@ final class CaptureOptionsPreferenceTests: XCTestCase {
 }
 
 private final class StubSelector: RegionSelecting {
-    func present(onChange _: @escaping (Region) -> Void, completion _: @escaping (Region?) -> Void) {}
-    func enterSharingMode(onStop _: @escaping () -> Void) {}
+    func present(completion _: @escaping (Region?) -> Void) {}
     func dismiss() {}
 }
 
@@ -124,5 +146,4 @@ private final class StubCapture: CaptureSessionControlling {
 
     func start() async throws {}
     func stop() async {}
-    func updateRegion(_: Region) async throws {}
 }

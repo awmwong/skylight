@@ -10,6 +10,7 @@ final class ShareSessionTests: XCTestCase {
     private var mirror: FakeMirror!
     private var captures: [FakeCapture]!
     private var surfacedErrors: [String]!
+    private var persistedRegions: [Region]!
 
     private let region = Region(
         displayID: 1,
@@ -23,6 +24,7 @@ final class ShareSessionTests: XCTestCase {
         mirror = FakeMirror()
         captures = []
         surfacedErrors = []
+        persistedRegions = []
     }
 
     private func makeSession(
@@ -46,7 +48,8 @@ final class ShareSessionTests: XCTestCase {
                 )
             },
             hasScreenRecordingPermission: { hasPermission },
-            requestScreenRecordingPermission: {}
+            requestScreenRecordingPermission: {},
+            persistLastRegion: { [self] region in persistedRegions.append(region) }
         )
         session.onUserFacingError = { [self] message in surfacedErrors.append(message) }
         return session
@@ -71,7 +74,8 @@ final class ShareSessionTests: XCTestCase {
         XCTAssertEqual(captures.count, 1)
         XCTAssertTrue(captures[0].started)
         XCTAssertEqual(mirror.presentedDisplayIDs, try [XCTUnwrap(displays.lastHandle?.displayID)])
-        XCTAssertTrue(selector.inSharingMode)
+        XCTAssertTrue(selector.dismissed, "the overlay must go away once the share is live")
+        XCTAssertEqual(persistedRegions, [region])
     }
 
     func testCancelledSelectionReturnsToIdle() {
@@ -140,23 +144,6 @@ final class ShareSessionTests: XCTestCase {
         XCTAssertTrue(displays.liveDisplayIDs.isEmpty)
     }
 
-    // MARK: - Live region updates
-
-    func testRegionChangeUpdatesCaptureWithoutRecreatingDisplay() async throws {
-        let session = makeSession()
-        session.beginSelection()
-        selector.confirm(region)
-        try await waitUntil("session starts sharing") { session.state == .sharing }
-
-        let moved = Region(displayID: 1, rect: region.rect.offsetBy(dx: 40, dy: 20))
-        selector.change(moved)
-        await session.settlePendingRegionUpdates()
-
-        XCTAssertEqual(captures[0].updatedRegions.last, moved)
-        XCTAssertEqual(session.currentRegion, moved)
-        XCTAssertEqual(displays.createCalls.count, 1, "mid-share resize letterboxes; no display recreation")
-    }
-
     // MARK: - Preset recall
 
     func testStartSharingWithRegionSkipsSelection() async {
@@ -178,6 +165,7 @@ final class ShareSessionTests: XCTestCase {
         let clamped = CGRect(x: 1360, y: 840, width: 640, height: 360)
         XCTAssertEqual(captures[0].region.rect, clamped)
         XCTAssertEqual(session.currentRegion?.rect, clamped)
+        XCTAssertEqual(persistedRegions.map(\.rect), [clamped], "the clamped region is what persists")
     }
 
     func testStartSharingWithRegionWhileSharingRestartsWithNewRegion() async {

@@ -51,17 +51,11 @@ final class ShareSession {
     private let hasScreenRecordingPermission: () -> Bool
     private let requestScreenRecordingPermission: () -> Void
     private let captureOptions: () -> CaptureOptions
+    private let persistLastRegion: (Region) -> Void
 
     private var displayHandle: VirtualDisplayHandle?
     private var capture: CaptureSessionControlling?
     private var framePump: Task<Void, Never>?
-
-    // Border drags emit region changes faster than SCStream reconfiguration
-    // finishes, so updates are coalesced: while one is in flight the newest
-    // region waits in `pendingRegion` and is applied when the in-flight one
-    // completes.
-    private var pendingRegion: Region?
-    private var regionUpdateTask: Task<Void, Never>?
 
     init(
         displayProvider: VirtualDisplayProviding,
@@ -71,7 +65,8 @@ final class ShareSession {
         sourceDisplayInfo: @escaping (CGDirectDisplayID) -> SourceDisplayInfo?,
         hasScreenRecordingPermission: @escaping () -> Bool,
         requestScreenRecordingPermission: @escaping () -> Void,
-        captureOptions: @escaping () -> CaptureOptions = { CaptureOptions() }
+        captureOptions: @escaping () -> CaptureOptions = { CaptureOptions() },
+        persistLastRegion: @escaping (Region) -> Void = { _ in }
     ) {
         self.displayProvider = displayProvider
         self.selector = selector
@@ -81,6 +76,7 @@ final class ShareSession {
         self.hasScreenRecordingPermission = hasScreenRecordingPermission
         self.requestScreenRecordingPermission = requestScreenRecordingPermission
         self.captureOptions = captureOptions
+        self.persistLastRegion = persistLastRegion
     }
 
     // MARK: - Entry points
@@ -92,7 +88,6 @@ final class ShareSession {
         state = .selecting
 
         selector.present(
-            onChange: { [weak self] region in self?.regionChanged(region) },
             completion: { [weak self] region in
                 guard let self else { return }
                 guard let region else {
@@ -100,7 +95,7 @@ final class ShareSession {
                     selector.dismiss()
                     return
                 }
-                Task { [weak self] in await self?.share(region, keepOverlay: true) }
+                Task { [weak self] in await self?.share(region) }
             }
         )
     }
@@ -113,14 +108,14 @@ final class ShareSession {
         }
         guard state == .idle else { return }
         state = .selecting
-        await share(region, keepOverlay: false)
+        await share(region)
     }
 
     func stopSharing() async {
         guard state == .sharing else { return }
-        // Leave .sharing before the first await so a second stop, a capture
-        // error, or a border drag arriving mid-teardown finds the guards
-        // closed instead of racing this teardown.
+        // Leave .sharing before the first await so a second stop or a
+        // capture error arriving mid-teardown finds the guards closed
+        // instead of racing this teardown.
         state = .idle
         await teardownShare()
     }
@@ -136,7 +131,7 @@ final class ShareSession {
 
     // MARK: - Share lifecycle
 
-    private func share(_ requestedRegion: Region, keepOverlay: Bool) async {
+    private func share(_ requestedRegion: Region) async {
         guard let info = preflight(requestedRegion) else { return }
 
         // A recalled preset can be stale: the display may have moved, shrunk,
@@ -148,8 +143,12 @@ final class ShareSession {
         )
 
         do {
-            try await startPipeline(region: region, info: info, keepOverlay: keepOverlay)
+            try await startPipeline(region: region, info: info)
+            // The viewport is fixed once sharing starts; nothing stays on
+            // screen, so the selection overlay goes away here.
+            selector.dismiss()
             currentRegion = region
+            persistLastRegion(region)
             state = .sharing
         } catch {
             Self.logger.error("share start failed: \(error, privacy: .public)")
@@ -182,7 +181,7 @@ final class ShareSession {
         return info
     }
 
-    private func startPipeline(region: Region, info: SourceDisplayInfo, keepOverlay: Bool) async throws {
+    private func startPipeline(region: Region, info: SourceDisplayInfo) async throws {
         // Same rounding as the capture output (CaptureConfig), so the display
         // and the frames it shows never differ by a letterbox sliver.
         let pixelSize = Geometry.evenPixelSize(forPoints: region.rect.size, scale: info.scale)
@@ -209,12 +208,6 @@ final class ShareSession {
                 mirror.enqueue(sampleBuffer)
             }
         }
-
-        if keepOverlay {
-            selector.enterSharingMode { [weak self] in
-                Task { await self?.stopSharing() }
-            }
-        }
     }
 
     private func teardownShare() async {
@@ -222,9 +215,6 @@ final class ShareSession {
         // a re-entrant call finds nothing left to tear down twice.
         framePump?.cancel()
         framePump = nil
-        regionUpdateTask?.cancel()
-        regionUpdateTask = nil
-        pendingRegion = nil
         let captureToStop = capture
         capture = nil
         let handleToDestroy = displayHandle
@@ -252,37 +242,6 @@ final class ShareSession {
         Task {
             await self.teardownShare()
             self.surface("Sharing stopped: \(self.userDescription(of: error))")
-        }
-    }
-
-    // MARK: - Live region updates
-
-    /// Mid-share the virtual display keeps its size and the mirror
-    /// letterboxes any aspect change (SPEC "Resolved Decisions"), so a moved
-    /// or resized border only reconfigures the capture crop.
-    private func regionChanged(_ region: Region) {
-        guard state == .sharing, let capture else { return }
-        currentRegion = region
-        pendingRegion = region
-
-        guard regionUpdateTask == nil else { return }
-        regionUpdateTask = Task { [weak self] in
-            while let self, !Task.isCancelled, let next = pendingRegion {
-                pendingRegion = nil
-                do {
-                    try await capture.updateRegion(next)
-                } catch {
-                    Self.logger.error("capture reconfigure failed: \(error, privacy: .public)")
-                }
-            }
-            self?.regionUpdateTask = nil
-        }
-    }
-
-    /// Test hook: waits until the coalesced region-update queue drains.
-    func settlePendingRegionUpdates() async {
-        while let task = regionUpdateTask {
-            await task.value
         }
     }
 

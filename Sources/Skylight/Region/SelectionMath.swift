@@ -161,4 +161,50 @@ enum SelectionMath {
         )
         return Geometry.convertAppKitToCG(globalAppKitRect, primaryDisplayHeight: primaryDisplayHeight)
     }
+
+    /// Inverse of `globalCGRect`: global CG top-left coordinates back into a
+    /// panel's local view coordinates.
+    static func localRect(
+        fromGlobalCG rect: CGRect,
+        panelFrame: CGRect,
+        primaryDisplayHeight: CGFloat
+    ) -> CGRect {
+        let globalAppKitRect = Geometry.convertCGToAppKit(rect, primaryDisplayHeight: primaryDisplayHeight)
+        return CGRect(
+            x: globalAppKitRect.minX - panelFrame.minX,
+            y: globalAppKitRect.minY - panelFrame.minY,
+            width: globalAppKitRect.width,
+            height: globalAppKitRect.height
+        )
+    }
+
+    // MARK: - Initial selection
+
+    /// The overlay's starting rect: the last shared region, when it was on
+    /// this display and is still valid (clamped to the current bounds), else
+    /// a centered rect half the display's size.
+    static func initialSelectionRect(
+        lastRegion: Region?,
+        displayID: CGDirectDisplayID,
+        panelFrame: CGRect,
+        primaryDisplayHeight: CGFloat,
+        localBounds: CGRect
+    ) -> CGRect {
+        if let lastRegion, lastRegion.displayID == displayID, lastRegion.isValid {
+            let local = localRect(
+                fromGlobalCG: lastRegion.rect,
+                panelFrame: panelFrame,
+                primaryDisplayHeight: primaryDisplayHeight
+            )
+            return Geometry.clamp(local, toDisplayBounds: localBounds)
+        }
+
+        let size = CGSize(width: localBounds.width / 2, height: localBounds.height / 2)
+        return CGRect(
+            x: localBounds.midX - size.width / 2,
+            y: localBounds.midY - size.height / 2,
+            width: size.width,
+            height: size.height
+        )
+    }
 }

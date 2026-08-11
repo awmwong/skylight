@@ -237,4 +237,84 @@ final class SelectionMathTests: XCTestCase {
 
         XCTAssertEqual(globalCGRect, CGRect(x: 0, y: 0, width: 100, height: 50))
     }
+
+    func testLocalRectIsTheInverseOfGlobalCGRect() {
+        let panelFrame = CGRect(x: 1920, y: -200, width: 1920, height: 1080)
+        let localRect = CGRect(x: 100, y: 200, width: 400, height: 300)
+
+        let roundTripped = SelectionMath.localRect(
+            fromGlobalCG: SelectionMath.globalCGRect(
+                localRect: localRect,
+                panelFrame: panelFrame,
+                primaryDisplayHeight: 1080
+            ),
+            panelFrame: panelFrame,
+            primaryDisplayHeight: 1080
+        )
+
+        XCTAssertEqual(roundTripped, localRect)
+    }
+
+    // MARK: - Initial selection rect
+
+    private let initialBounds = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+    private let initialPanelFrame = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+
+    func testInitialSelectionWithNoLastRegionCentersHalfSizeRect() {
+        let rect = SelectionMath.initialSelectionRect(
+            lastRegion: nil,
+            displayID: 1,
+            panelFrame: initialPanelFrame,
+            primaryDisplayHeight: 1080,
+            localBounds: initialBounds
+        )
+
+        XCTAssertEqual(rect, CGRect(x: 480, y: 270, width: 960, height: 540))
+    }
+
+    func testInitialSelectionReusesLastRegionOnSameDisplay() {
+        // CG top-left (100, 100, 640, 360) on a 1080-high display flips to
+        // AppKit y = 1080 - 100 - 360 = 620.
+        let last = Region(displayID: 1, rect: CGRect(x: 100, y: 100, width: 640, height: 360))
+
+        let rect = SelectionMath.initialSelectionRect(
+            lastRegion: last,
+            displayID: 1,
+            panelFrame: initialPanelFrame,
+            primaryDisplayHeight: 1080,
+            localBounds: initialBounds
+        )
+
+        XCTAssertEqual(rect, CGRect(x: 100, y: 620, width: 640, height: 360))
+    }
+
+    func testInitialSelectionIgnoresLastRegionFromAnotherDisplay() {
+        let last = Region(displayID: 7, rect: CGRect(x: 100, y: 100, width: 640, height: 360))
+
+        let rect = SelectionMath.initialSelectionRect(
+            lastRegion: last,
+            displayID: 1,
+            panelFrame: initialPanelFrame,
+            primaryDisplayHeight: 1080,
+            localBounds: initialBounds
+        )
+
+        XCTAssertEqual(rect, CGRect(x: 480, y: 270, width: 960, height: 540))
+    }
+
+    func testInitialSelectionClampsLastRegionToCurrentBounds() {
+        // A region saved on a bigger display: wider than today's bounds.
+        let last = Region(displayID: 1, rect: CGRect(x: 0, y: 0, width: 4000, height: 360))
+
+        let rect = SelectionMath.initialSelectionRect(
+            lastRegion: last,
+            displayID: 1,
+            panelFrame: initialPanelFrame,
+            primaryDisplayHeight: 1080,
+            localBounds: initialBounds
+        )
+
+        XCTAssertTrue(initialBounds.contains(rect))
+        XCTAssertEqual(rect.width, 1920)
+    }
 }

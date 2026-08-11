@@ -5,9 +5,8 @@ import os
 /// Presents a draggable, resizable selection border on the display under the
 /// mouse cursor and reports the chosen `Region` back through a completion
 /// handler — `nil` if the user cancels (Esc, or the panel closing without a
-/// confirm). After a confirm the border stays on screen so `ShareSession`
-/// can switch it into sharing mode (border only, live `onChange` updates)
-/// or dismiss it if the share failed to start.
+/// confirm). After a confirm the overlay stays up until `ShareSession`
+/// dismisses it: on success once the share is live, or on failure.
 @MainActor
 final class SelectionOverlayController: NSObject, RegionSelecting {
     /// Debug/accessibility label for the panel. Capture exclusion does not
@@ -17,20 +16,25 @@ final class SelectionOverlayController: NSObject, RegionSelecting {
     static let windowTitle = "Skylight Selection Overlay"
 
     private static let logger = Logger(subsystem: "com.anthony.skylight", category: "SelectionOverlay")
-    private static let initialRectFraction: CGFloat = 0.5
+
+    private let initialRegionProvider: () -> Region?
 
     private var panel: OverlayPanel?
     private var overlayView: SelectionOverlayView?
     private var completion: ((Region?) -> Void)?
-    private var onChange: ((Region) -> Void)?
-    private var sharingStopHandler: (() -> Void)?
     private var targetScreen: NSScreen?
     private var presentedDisplayID: CGDirectDisplayID?
 
+    /// `initialRegionProvider` supplies the last shared region (if any) so
+    /// the overlay opens with the previous viewport preselected.
+    init(initialRegionProvider: @escaping () -> Region? = { nil }) {
+        self.initialRegionProvider = initialRegionProvider
+        super.init()
+    }
+
     /// Shows the overlay on the screen under the mouse cursor. Calls
-    /// `completion` exactly once; `onChange` fires on every border drag,
-    /// both before the confirm and during sharing mode.
-    func present(onChange: @escaping (Region) -> Void, completion: @escaping (Region?) -> Void) {
+    /// `completion` exactly once.
+    func present(completion: @escaping (Region?) -> Void) {
         guard panel == nil else {
             Self.logger.error("present called while an overlay is already showing")
             return
@@ -47,18 +51,23 @@ final class SelectionOverlayController: NSObject, RegionSelecting {
         }
 
         self.completion = completion
-        self.onChange = onChange
         targetScreen = screen
         presentedDisplayID = displayID
 
         let localBounds = CGRect(origin: .zero, size: screen.frame.size)
+        let initialRect = SelectionMath.initialSelectionRect(
+            lastRegion: initialRegionProvider(),
+            displayID: displayID,
+            panelFrame: screen.frame,
+            primaryDisplayHeight: Self.primaryDisplayHeight(),
+            localBounds: localBounds
+        )
         let view = SelectionOverlayView(
             displayBounds: localBounds,
-            initialRect: Self.initialSelectionRect(in: localBounds),
+            initialRect: initialRect,
             onConfirm: { [weak self] localRect in self?.handleConfirm(localRect) },
             onCancel: { [weak self] in self?.handleCancel() }
         )
-        view.onRectChanged = { [weak self] localRect in self?.emitChange(localRect) }
         overlayView = view
 
         let panel = Self.makePanel(frame: screen.frame, contentView: view)
@@ -68,13 +77,6 @@ final class SelectionOverlayController: NSObject, RegionSelecting {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    /// Strips the overlay to an adjustable border. Esc now means "stop
-    /// sharing" and is forwarded to `onStop`.
-    func enterSharingMode(onStop: @escaping () -> Void) {
-        sharingStopHandler = onStop
-        overlayView?.enterSharingMode()
-    }
-
     func dismiss() {
         panel?.orderOut(nil)
         panel = nil
@@ -82,38 +84,26 @@ final class SelectionOverlayController: NSObject, RegionSelecting {
         targetScreen = nil
         presentedDisplayID = nil
         completion = nil
-        onChange = nil
-        sharingStopHandler = nil
     }
 
     private func handleConfirm(_ localRect: CGRect) {
         guard let completion else { return }
         self.completion = nil
-        // The panel deliberately stays up: the session either switches it
-        // into sharing mode or dismisses it if the share fails to start.
+        // The panel deliberately stays up: the session dismisses it once the
+        // share is live, or when the share fails to start.
         completion(region(fromLocalRect: localRect))
     }
 
     private func handleCancel() {
-        if let sharingStopHandler {
-            sharingStopHandler()
-            return
-        }
         guard completion != nil else {
-            // Confirm already fired and the share is still starting up.
-            // Dismissing now would strand the session sharing with no
-            // border, so the Esc is ignored; once sharing mode is active,
-            // Esc stops the share through `sharingStopHandler`.
+            // Confirm already fired and the share is starting up; the
+            // session owns the overlay's fate now, so Esc is ignored.
+            // Stopping a live share is the menu's and hotkey's job.
             return
         }
         let completion = completion
         dismiss()
         completion?(nil)
-    }
-
-    private func emitChange(_ localRect: CGRect) {
-        guard let region = region(fromLocalRect: localRect) else { return }
-        onChange?(region)
     }
 
     private func region(fromLocalRect localRect: CGRect) -> Region? {
@@ -124,15 +114,6 @@ final class SelectionOverlayController: NSObject, RegionSelecting {
             primaryDisplayHeight: Self.primaryDisplayHeight()
         )
         return Region(displayID: presentedDisplayID, rect: cgRect)
-    }
-
-    private static func initialSelectionRect(in bounds: CGRect) -> CGRect {
-        let size = CGSize(
-            width: bounds.width * initialRectFraction,
-            height: bounds.height * initialRectFraction
-        )
-        let origin = CGPoint(x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2)
-        return CGRect(origin: origin, size: size)
     }
 
     private static func screenUnderMouse() -> NSScreen? {

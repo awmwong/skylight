@@ -20,14 +20,14 @@ enum CaptureError: Error, Equatable {
 ///
 /// Threading: frame callbacks arrive on `sampleQueue` (kept off the main
 /// thread so frame delivery never waits behind UI work) and only touch the
-/// thread-safe `frameContinuation`. The mutable state (`region`, `stream`)
-/// is mutated only through `start`/`stop`/`updateRegion`, which the
-/// `@MainActor` `ShareSession` is the sole caller of.
+/// thread-safe `frameContinuation`. `stream` is the only mutable state and
+/// is mutated only through `start`/`stop`, which the `@MainActor`
+/// `ShareSession` is the sole caller of.
 final class CaptureEngine: NSObject {
     private let logger = Logger(subsystem: CaptureConfig.excludedBundleIdentifier, category: "capture")
     private let sampleQueue = DispatchQueue(label: "com.anthony.skylight.capture.frames")
 
-    private var region: Region
+    private let region: Region
     private let displayOrigin: CGPoint
     private let displayScale: CGFloat
     private let options: CaptureOptions
@@ -100,18 +100,6 @@ final class CaptureEngine: NSObject {
         } catch {
             logger.error("stopCapture failed: \(error.localizedDescription, privacy: .public)")
         }
-    }
-
-    /// Reconfigures the running stream's crop rect and output size for
-    /// `newRegion` without tearing down and recreating the `SCStream`, so
-    /// the shared output doesn't flicker or drop while the user drags the
-    /// region.
-    func updateRegion(_ newRegion: Region) async throws {
-        region = newRegion
-        guard let stream else { return }
-        let streamConfiguration = SCStreamConfiguration()
-        currentConfig().apply(to: streamConfiguration)
-        try await stream.updateConfiguration(streamConfiguration)
     }
 
     private func currentConfig() -> CaptureConfig {

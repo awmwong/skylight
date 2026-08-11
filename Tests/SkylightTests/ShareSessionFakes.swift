@@ -7,19 +7,12 @@ import CoreMedia
 @MainActor
 final class FakeSelector: RegionSelecting {
     private(set) var presentCount = 0
-    private(set) var inSharingMode = false
     private(set) var dismissed = false
-    private var onChange: ((Region) -> Void)?
     private var completion: ((Region?) -> Void)?
 
-    func present(onChange: @escaping (Region) -> Void, completion: @escaping (Region?) -> Void) {
+    func present(completion: @escaping (Region?) -> Void) {
         presentCount += 1
-        self.onChange = onChange
         self.completion = completion
-    }
-
-    func enterSharingMode(onStop _: @escaping () -> Void) {
-        inSharingMode = true
     }
 
     func dismiss() {
@@ -34,10 +27,6 @@ final class FakeSelector: RegionSelecting {
 
     func cancel() {
         completion?(nil)
-    }
-
-    func change(_ region: Region) {
-        onChange?(region)
     }
 }
 
@@ -68,7 +57,6 @@ final class FakeCapture: CaptureSessionControlling {
     private(set) var started = false
     private(set) var stopped = false
     private(set) var stopCount = 0
-    private(set) var updatedRegions: [Region] = []
 
     private let startError: Error?
     private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
@@ -92,10 +80,6 @@ final class FakeCapture: CaptureSessionControlling {
         stopped = true
         stopCount += 1
         continuation?.finish()
-    }
-
-    func updateRegion(_ region: Region) async throws {
-        updatedRegions.append(region)
     }
 
     func yield(_ buffer: CMSampleBuffer) {
