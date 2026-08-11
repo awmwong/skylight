@@ -6,3 +6,7 @@ dist/
 .DS_Store
 xcuserdata/
 .claude/
+
+# Local working artifacts — never published.
+SPEC.md
+tasks/

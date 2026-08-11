@@ -1,6 +1,6 @@
 # Skylight Smoke Test Checklist
 
-Manual verification for every success criterion in `SPEC.md`. Run this after
+Manual verification of the app's success criteria. Run this after
 each change that touches sharing, capture, or the virtual display. Fill in
 Pass/Fail and notes as you go.
 
@@ -36,7 +36,7 @@ Record results here:
 
 ---
 
-## 1. Region selection (SPEC criterion 1)
+## 1. Region selection
 
 **Setup:** Skylight is running; menu bar shows the Skylight icon; sharing is
 idle.
@@ -62,7 +62,7 @@ Sharing").
 
 ---
 
-## 2. Virtual display appears, live, HiDPI-correct (SPEC criterion 2)
+## 2. Virtual display appears, live, HiDPI-correct
 
 **Setup:** Continue from a confirmed region (check 1), or start sharing any
 region.
@@ -95,9 +95,9 @@ never appear inside the captured region).
 
 ---
 
-## 3. Shareable in real conferencing / recording apps (SPEC criterion 3)
+## 3. Shareable in real conferencing / recording apps
 
-Run all three. SPEC requires at least two to pass; record all for coverage.
+Run all three. At least two must pass; record all for coverage.
 
 ### 3a. QuickTime Player
 
@@ -150,7 +150,7 @@ share picker and shows only the region's content to viewers.
 
 ---
 
-## 4. Live move/resize and letterboxing (SPEC criterion 4)
+## 4. Live move/resize and letterboxing
 
 **Setup:** Sharing is active (any app from check 3, or just QuickTime
 preview) with the selection overlay still visible.
@@ -179,7 +179,7 @@ new size.
 
 ---
 
-## 5. Presets: save, recall, persist across relaunch (SPEC criterion 5)
+## 5. Presets: save, recall, persist across relaunch
 
 **Steps:**
 
@@ -202,7 +202,7 @@ exact saved region every time.
 
 ---
 
-## 6. Global hotkey toggle (SPEC criterion 6)
+## 6. Global hotkey toggle
 
 **Setup:** A hotkey is configured in Skylight's settings window (set one if
 none is configured yet — open the menu bar → Settings, click the hotkey
@@ -226,7 +226,7 @@ has focus, without needing to click the menu bar icon.
 
 ---
 
-## 7. Cursor include/exclude toggle (SPEC criterion 7)
+## 7. Cursor include/exclude toggle
 
 **Steps:**
 
@@ -248,7 +248,7 @@ according to the toggle's state at share start.
 
 ---
 
-## 8. No phantom display after stop or quit (SPEC criterion 8)
+## 8. No phantom display after stop or quit
 
 Run both paths.
 
@@ -281,13 +281,13 @@ Skylight window should appear).
 **Expected result:** "Skylight Display" is gone after quit even though
 sharing was never explicitly stopped first. If it is not gone, relaunch
 Skylight and Stop Sharing/quit again as a recovery step, then file this as a
-bug — a display that survives quit is a spec violation (SPEC "Never").
+bug — a display must never survive quit.
 
 **Result:** [ ] Pass  [ ] Fail — Notes: _______________________
 
 ---
 
-## 9. Automated test suite and lint (SPEC criterion 9)
+## 9. Automated test suite and lint
 
 **Steps:**
 

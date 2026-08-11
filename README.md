@@ -76,8 +76,8 @@ swiftformat . && swiftlint                 # format and lint
 scripts/release.sh                         # build a signed local zip
 ```
 
-The full specification is in [SPEC.md](SPEC.md). The manual verification
-checklist is in [docs/smoke-test.md](docs/smoke-test.md). One test
+The manual verification checklist is in
+[docs/smoke-test.md](docs/smoke-test.md). One test
 (`testRealVirtualDisplayLifecycle`) creates a real virtual display, so the
 suite needs a logged-in GUI session.
 
