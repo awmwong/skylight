@@ -43,6 +43,10 @@ struct MenuContent: View {
 
         Divider()
 
+        Button("Settings…") { SettingsWindowController.shared.show() }
+
+        Divider()
+
         Button("Quit \(AppInfo.name)") {
             NSApplication.shared.terminate(nil)
         }

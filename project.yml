@@ -8,6 +8,10 @@ settings:
   base:
     SWIFT_VERSION: "5.10"
     CODE_SIGN_IDENTITY: "-"
+packages:
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: 2.0.0
 targets:
   Skylight:
     type: application
@@ -15,6 +19,8 @@ targets:
     sources:
       - Sources/Skylight
       - Sources/SkylightSPI
+    dependencies:
+      - package: KeyboardShortcuts
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.anthony.skylight

@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import KeyboardShortcuts
 import os
 
 /// Composition root: builds the real `ShareSession` wiring (CGVirtualDisplay
@@ -33,6 +34,24 @@ final class AppServices {
             captureOptions: { CaptureOptions(showsCursor: Preferences.showsCursor) }
         )
         session.onUserFacingError = { [weak self] message in self?.presentError(message) }
+
+        KeyboardShortcuts.onKeyUp(for: .toggleSharing) { [weak self] in
+            self?.handleHotkey()
+        }
+    }
+
+    private func handleHotkey() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            switch HotkeyController.action(state: session.state, lastRegion: session.currentRegion) {
+            case .stopSharing:
+                await session.stopSharing()
+            case let .startSharing(region):
+                await session.startSharing(with: region)
+            case .beginSelection:
+                session.beginSelection()
+            }
+        }
     }
 
     func presentError(_ message: String) {
@@ -79,18 +98,20 @@ final class AppServices {
     }
 }
 
-/// User preferences shared between the menu and the capture pipeline. The
-/// settings UI lands in T9; the key is defined here so the capture side has
-/// one source of truth from the start.
+/// User preferences shared between the menu and the capture pipeline.
+/// `defaults` is var, not let, so tests can point it at an isolated
+/// `UserDefaults` suite instead of touching the user's real preferences.
 enum Preferences {
     private static let showsCursorKey = "showsCursor"
 
+    static var defaults: UserDefaults = .standard
+
     static var showsCursor: Bool {
         get {
-            UserDefaults.standard.object(forKey: showsCursorKey) as? Bool ?? true
+            defaults.object(forKey: showsCursorKey) as? Bool ?? true
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: showsCursorKey)
+            defaults.set(newValue, forKey: showsCursorKey)
         }
     }
 }
