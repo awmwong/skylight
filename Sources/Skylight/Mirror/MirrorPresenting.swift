@@ -41,19 +41,11 @@ final class DisplayMirror: MirrorPresenting {
 
     private func waitForScreen(displayID: CGDirectDisplayID) async throws -> NSScreen {
         for _ in 0 ..< Self.pollAttempts {
-            if let screen = Self.screen(for: displayID) {
+            if let screen = NSScreen.screen(for: displayID) {
                 return screen
             }
             try await Task.sleep(for: Self.pollInterval)
         }
         throw MirrorError.screenNotFound(displayID)
-    }
-
-    private static func screen(for displayID: CGDirectDisplayID) -> NSScreen? {
-        NSScreen.screens.first { screen in
-            let key = NSDeviceDescriptionKey("NSScreenNumber")
-            guard let number = screen.deviceDescription[key] as? NSNumber else { return false }
-            return CGDirectDisplayID(number.uint32Value) == displayID
-        }
     }
 }

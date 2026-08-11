@@ -38,7 +38,7 @@ final class SelectionOverlayController: NSObject, RegionSelecting {
             completion(nil)
             return
         }
-        guard let displayID = Self.displayID(for: screen) else {
+        guard let displayID = screen.displayID else {
             Self.logger.error("screen under mouse has no CGDirectDisplayID")
             completion(nil)
             return
@@ -129,14 +129,6 @@ final class SelectionOverlayController: NSObject, RegionSelecting {
     private static func screenUnderMouse() -> NSScreen? {
         let mouseLocation = NSEvent.mouseLocation
         return NSScreen.screens.first { $0.frame.contains(mouseLocation) } ?? NSScreen.main
-    }
-
-    private static func displayID(for screen: NSScreen) -> CGDirectDisplayID? {
-        guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
-        else {
-            return nil
-        }
-        return CGDirectDisplayID(number.uint32Value)
     }
 
     /// AppKit's global coordinate space is anchored to the primary display's

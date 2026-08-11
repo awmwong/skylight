@@ -1,5 +1,3 @@
-import CoreMedia
-import CoreVideo
 @testable import Skylight
 import XCTest
 
@@ -84,7 +82,7 @@ final class LetterboxTests: XCTestCase {
 
     func testEnqueueAcceptsSampleBufferWithoutCrashing() throws {
         let view = FrameRendererView(frame: CGRect(x: 0, y: 0, width: 1000, height: 1000))
-        let sampleBuffer = try Self.makeSampleBuffer(width: 2000, height: 500)
+        let sampleBuffer = try SampleBufferFixtures.make(width: 2000, height: 500)
 
         view.enqueue(sampleBuffer)
 
@@ -94,60 +92,10 @@ final class LetterboxTests: XCTestCase {
     func testEnqueueUpdatesLayoutWhenBufferSizeChanges() throws {
         let view = FrameRendererView(frame: CGRect(x: 0, y: 0, width: 1000, height: 1000))
 
-        try view.enqueue(Self.makeSampleBuffer(width: 2000, height: 500))
+        try view.enqueue(SampleBufferFixtures.make(width: 2000, height: 500))
         XCTAssertEqual(view.displayLayer.frame, CGRect(x: 0, y: 375, width: 1000, height: 250))
 
-        try view.enqueue(Self.makeSampleBuffer(width: 500, height: 2000))
+        try view.enqueue(SampleBufferFixtures.make(width: 500, height: 2000))
         XCTAssertEqual(view.displayLayer.frame, CGRect(x: 375, y: 0, width: 250, height: 1000))
-    }
-
-    // MARK: - Helpers
-
-    private enum SampleBufferTestError: Error {
-        case pixelBufferCreationFailed(CVReturn)
-        case sampleBufferCreationFailed(OSStatus)
-    }
-
-    private static func makeSampleBuffer(width: Int, height: Int) throws -> CMSampleBuffer {
-        var pixelBuffer: CVPixelBuffer?
-        let pixelBufferStatus = CVPixelBufferCreate(
-            kCFAllocatorDefault,
-            width,
-            height,
-            kCVPixelFormatType_32BGRA,
-            nil,
-            &pixelBuffer
-        )
-        guard pixelBufferStatus == kCVReturnSuccess, let pixelBuffer else {
-            throw SampleBufferTestError.pixelBufferCreationFailed(pixelBufferStatus)
-        }
-
-        var formatDescription: CMVideoFormatDescription?
-        CMVideoFormatDescriptionCreateForImageBuffer(
-            allocator: kCFAllocatorDefault,
-            imageBuffer: pixelBuffer,
-            formatDescriptionOut: &formatDescription
-        )
-        guard let formatDescription else {
-            throw SampleBufferTestError.sampleBufferCreationFailed(-1)
-        }
-
-        var timingInfo = CMSampleTimingInfo(
-            duration: .invalid,
-            presentationTimeStamp: .zero,
-            decodeTimeStamp: .invalid
-        )
-        var sampleBuffer: CMSampleBuffer?
-        let sampleBufferStatus = CMSampleBufferCreateReadyWithImageBuffer(
-            allocator: kCFAllocatorDefault,
-            imageBuffer: pixelBuffer,
-            formatDescription: formatDescription,
-            sampleTiming: &timingInfo,
-            sampleBufferOut: &sampleBuffer
-        )
-        guard sampleBufferStatus == noErr, let sampleBuffer else {
-            throw SampleBufferTestError.sampleBufferCreationFailed(sampleBufferStatus)
-        }
-        return sampleBuffer
     }
 }

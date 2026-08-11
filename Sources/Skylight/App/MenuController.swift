@@ -89,12 +89,7 @@ final class AppServices {
     }
 
     private static func backingScale(for displayID: CGDirectDisplayID) -> CGFloat {
-        let screen = NSScreen.screens.first { screen in
-            let key = NSDeviceDescriptionKey("NSScreenNumber")
-            guard let number = screen.deviceDescription[key] as? NSNumber else { return false }
-            return CGDirectDisplayID(number.uint32Value) == displayID
-        }
-        return screen?.backingScaleFactor ?? 1
+        NSScreen.screen(for: displayID)?.backingScaleFactor ?? 1
     }
 }
 
