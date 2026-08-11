@@ -12,10 +12,23 @@ final class SelectionOverlayView: NSView {
     private static let maskColor = NSColor.black.withAlphaComponent(0.5)
     private static let readoutMargin: CGFloat = 6
 
+    /// What the overlay is currently for. `.selecting` shows the full
+    /// pick-a-region chrome; `.sharing` keeps only the adjustable border so
+    /// the user can move/resize mid-share without the dimmed mask blocking
+    /// their work.
+    enum Mode {
+        case selecting
+        case sharing
+    }
+
     private let displayBounds: CGRect
     private let onConfirm: (CGRect) -> Void
     private let onCancel: () -> Void
 
+    /// Fires on every drag-driven rect change, in both modes.
+    var onRectChanged: ((CGRect) -> Void)?
+
+    private var mode: Mode = .selecting
     private var selectionRect: CGRect
     private var activeDrag: SelectionDragKind?
     private var dragStartRect: CGRect = .zero
@@ -69,7 +82,18 @@ final class SelectionOverlayView: NSView {
         layOutSubviews()
     }
 
+    /// Drops the mask, confirm button, and readout, keeping only the
+    /// draggable border and handles. Esc still reaches `onCancel`, which the
+    /// controller reinterprets as "stop sharing".
+    func enterSharingMode() {
+        mode = .sharing
+        confirmButton.isHidden = true
+        readoutLabel.isHidden = true
+        needsDisplay = true
+    }
+
     @objc private func confirmTapped() {
+        guard mode == .selecting else { return }
         onConfirm(selectionRect)
     }
 
@@ -77,7 +101,7 @@ final class SelectionOverlayView: NSView {
         switch event.keyCode {
         case KeyCode.escape:
             onCancel()
-        case KeyCode.returnKey:
+        case KeyCode.returnKey where mode == .selecting:
             onConfirm(selectionRect)
         default:
             super.keyDown(with: event)
@@ -106,6 +130,7 @@ final class SelectionOverlayView: NSView {
         )
         layOutSubviews()
         needsDisplay = true
+        onRectChanged?(selectionRect)
     }
 
     override func mouseUp(with event: NSEvent) {
@@ -129,7 +154,9 @@ final class SelectionOverlayView: NSView {
 
     override func draw(_ dirtyRect: CGRect) {
         super.draw(dirtyRect)
-        drawMask()
+        if mode == .selecting {
+            drawMask()
+        }
         drawBorder()
         drawHandles()
     }

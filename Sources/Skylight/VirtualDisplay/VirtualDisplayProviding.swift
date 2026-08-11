@@ -23,4 +23,7 @@ protocol VirtualDisplayProviding: AnyObject {
     func createDisplay(name: String, widthPixels: Int, heightPixels: Int, scale: Int) throws
         -> VirtualDisplayHandle
     func destroyDisplay(_ handle: VirtualDisplayHandle) throws
+    /// Releases every live display. Called on app termination so nothing can
+    /// leave a phantom display behind.
+    func destroyAll()
 }

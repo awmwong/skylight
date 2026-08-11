@@ -11,21 +11,34 @@ struct SkylightApp: App {
 
     var body: some Scene {
         MenuBarExtra(AppInfo.name, systemImage: "rectangle.dashed.badge.record") {
-            MenuContent()
+            MenuContent(services: AppServices.shared)
         }
     }
 }
 
 struct MenuContent: View {
-    private let presetStore = RegionStore()
+    let services: AppServices
 
     var body: some View {
+        let session = services.session
+
+        switch session.state {
+        case .idle:
+            Button("Start Sharing…") { session.beginSelection() }
+        case .selecting:
+            Button("Selecting Region…") {}.disabled(true)
+        case .sharing:
+            Button("Stop Sharing") { Task { await session.stopSharing() } }
+        }
+
+        Divider()
+
         PresetsMenuSection(
-            presets: presetStore.load(),
-            onRecall: { _ in },
-            onDelete: { preset in try? presetStore.delete(named: preset.name) },
-            currentRegionProvider: nil,
-            onSaveCurrentRegion: { _ in }
+            presets: services.presetStore.load(),
+            onRecall: { preset in Task { await session.startSharing(with: preset.region) } },
+            onDelete: { preset in deletePreset(preset) },
+            currentRegionProvider: session.state == .sharing ? { session.currentRegion } : nil,
+            onSaveCurrentRegion: { region in savePreset(region) }
         )
 
         Divider()
@@ -35,10 +48,31 @@ struct MenuContent: View {
         }
         .keyboardShortcut("q")
     }
+
+    private func savePreset(_ region: Region) {
+        guard let name = services.promptForPresetName() else { return }
+        do {
+            try services.presetStore.save(RegionPreset(name: name, region: region))
+        } catch {
+            services.presentError("Saving the preset failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func deletePreset(_ preset: RegionPreset) {
+        do {
+            try services.presetStore.delete(named: preset.name)
+        } catch {
+            services.presentError("Deleting the preset failed: \(error.localizedDescription)")
+        }
+    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    func applicationDidFinishLaunching(_ notification: Notification) {}
-
-    func applicationWillTerminate(_ notification: Notification) {}
+    func applicationWillTerminate(_ notification: Notification) {
+        // A leaked CGVirtualDisplay is the one teardown failure users would
+        // keep seeing after quit; release displays synchronously here.
+        MainActor.assumeIsolated {
+            AppServices.shared.session.terminate()
+        }
+    }
 }

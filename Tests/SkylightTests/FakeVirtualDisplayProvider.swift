@@ -29,4 +29,8 @@ final class FakeVirtualDisplayProvider: VirtualDisplayProviding {
             throw VirtualDisplayError.displayNotFound(handle.displayID)
         }
     }
+
+    func destroyAll() {
+        liveDisplayIDs.removeAll()
+    }
 }

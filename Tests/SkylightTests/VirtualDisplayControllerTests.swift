@@ -97,7 +97,10 @@ private func waitUntil(
         if Date() >= deadline {
             return condition()
         }
-        Thread.sleep(forTimeInterval: pollInterval)
+        // CoreGraphics only refreshes its in-process display list while the
+        // run loop turns; a plain Thread.sleep here made this test flaky
+        // because CGGetOnlineDisplayList kept returning a stale snapshot.
+        RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
     }
     return true
 }
