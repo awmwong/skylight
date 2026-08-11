@@ -29,6 +29,7 @@ targets:
       path: Sources/Skylight/Info.plist
       properties:
         CFBundleDisplayName: Skylight
+        CFBundleIconFile: AppIcon
         LSUIElement: true
         NSScreenCaptureUsageDescription: >-
           Skylight captures the screen region you select so it can mirror it
