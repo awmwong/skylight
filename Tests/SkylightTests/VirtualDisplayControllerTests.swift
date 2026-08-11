@@ -1,0 +1,103 @@
+import CoreGraphics
+import Foundation
+@testable import Skylight
+import XCTest
+
+final class VirtualDisplayControllerTests: XCTestCase {
+    // MARK: - Fake-backed tests (no GUI session or SPI needed)
+
+    func testCreateDisplayReturnsHandleWithLiveDisplayID() throws {
+        let provider = FakeVirtualDisplayProvider()
+
+        let handle = try provider.createDisplay(name: "Test", widthPixels: 1280, heightPixels: 720, scale: 1)
+
+        XCTAssertTrue(provider.liveDisplayIDs.contains(handle.displayID))
+    }
+
+    func testDestroyDisplayRemovesIt() throws {
+        let provider = FakeVirtualDisplayProvider()
+        let handle = try provider.createDisplay(name: "Test", widthPixels: 1280, heightPixels: 720, scale: 1)
+
+        try provider.destroyDisplay(handle)
+
+        XCTAssertFalse(provider.liveDisplayIDs.contains(handle.displayID))
+    }
+
+    func testDestroyDisplayTwiceThrowsDisplayNotFound() throws {
+        let provider = FakeVirtualDisplayProvider()
+        let handle = try provider.createDisplay(name: "Test", widthPixels: 1280, heightPixels: 720, scale: 1)
+        try provider.destroyDisplay(handle)
+
+        XCTAssertThrowsError(try provider.destroyDisplay(handle)) { error in
+            XCTAssertEqual(error as? VirtualDisplayError, .displayNotFound(handle.displayID))
+        }
+    }
+
+    func testCreateDisplayRejectsNonPositiveDimensions() {
+        let provider = FakeVirtualDisplayProvider()
+
+        XCTAssertThrowsError(try provider.createDisplay(
+            name: "Test",
+            widthPixels: 0,
+            heightPixels: 720,
+            scale: 1
+        )) { error in
+            XCTAssertEqual(
+                error as? VirtualDisplayError,
+                .invalidDimensions(widthPixels: 0, heightPixels: 720)
+            )
+        }
+    }
+
+    // MARK: - Real SPI integration test (Checkpoint B)
+
+    /// Exercises the real CGVirtualDisplay SPI end to end: create a display,
+    /// confirm macOS lists it online, destroy it, confirm it's gone. This is
+    /// the highest-risk validation in the plan — if CGVirtualDisplay doesn't
+    /// work on this macOS version, this test fails and that must be treated
+    /// as a blocker, not something to skip or delete.
+    func testRealVirtualDisplayLifecycle() throws {
+        let controller = VirtualDisplayController()
+        let handle = try controller.createDisplay(
+            name: "Skylight SPI Test Display",
+            widthPixels: 1280,
+            heightPixels: 720,
+            scale: 1
+        )
+
+        let appeared = waitUntil(timeout: 5) { onlineDisplayIDs().contains(handle.displayID) }
+        XCTAssertTrue(
+            appeared,
+            "virtual display \(handle.displayID) never appeared in CGGetOnlineDisplayList"
+        )
+
+        try controller.destroyDisplay(handle)
+
+        // Teardown is async: the display disappears shortly after the last
+        // strong reference is released, not synchronously with it.
+        let disappeared = waitUntil(timeout: 5) { !onlineDisplayIDs().contains(handle.displayID) }
+        XCTAssertTrue(disappeared, "virtual display \(handle.displayID) is still online after destroy")
+    }
+}
+
+private func onlineDisplayIDs(maxDisplays: UInt32 = 32) -> [CGDirectDisplayID] {
+    var displayIDs = [CGDirectDisplayID](repeating: 0, count: Int(maxDisplays))
+    var actualCount: UInt32 = 0
+    CGGetOnlineDisplayList(maxDisplays, &displayIDs, &actualCount)
+    return Array(displayIDs.prefix(Int(actualCount)))
+}
+
+private func waitUntil(
+    timeout: TimeInterval,
+    pollInterval: TimeInterval = 0.1,
+    _ condition: () -> Bool
+) -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while !condition() {
+        if Date() >= deadline {
+            return condition()
+        }
+        Thread.sleep(forTimeInterval: pollInterval)
+    }
+    return true
+}
