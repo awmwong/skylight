@@ -106,6 +106,33 @@ final class RegionStoreTests: XCTestCase {
         XCTAssertEqual(store.load(), [])
     }
 
+    func testLoadDropsPresetsWithInvalidRegions() throws {
+        let store = makeStore()
+        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+        let fileURL = tempDirectory.appendingPathComponent("presets.json")
+        // Decodes fine, but with region values no display can have: recalling
+        // these must not trap in Int/UInt32 conversions downstream.
+        let presets = [
+            RegionPreset(
+                name: "ok",
+                region: Region(displayID: 1, rect: CGRect(x: 10, y: 20, width: 640, height: 360))
+            ),
+            RegionPreset(
+                name: "huge",
+                region: Region(displayID: 1, rect: CGRect(x: 0, y: 0, width: 1e300, height: 360))
+            ),
+            RegionPreset(
+                name: "negative",
+                region: Region(displayID: 1, rect: CGRect(x: 0, y: 0, width: -640, height: 360))
+            ),
+        ]
+        try JSONEncoder().encode(presets).write(to: fileURL)
+
+        let loaded = store.load()
+
+        XCTAssertEqual(loaded.map(\.name), ["ok"])
+    }
+
     func testLoadOnCorruptFileDoesNotDeleteIt() throws {
         let store = makeStore()
         try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)

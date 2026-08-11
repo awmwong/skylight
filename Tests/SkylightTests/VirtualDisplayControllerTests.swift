@@ -49,7 +49,25 @@ final class VirtualDisplayControllerTests: XCTestCase {
         }
     }
 
-    // MARK: - Real SPI integration test (Checkpoint B)
+    func testCreateDisplayRejectsDimensionsBeyondUInt32() {
+        // The guard runs before any SPI call, so the real controller is safe
+        // to use here. Without it, UInt32(widthPixels) traps.
+        let controller = VirtualDisplayController()
+
+        XCTAssertThrowsError(try controller.createDisplay(
+            name: "Test",
+            widthPixels: Int(UInt32.max) + 1,
+            heightPixels: 720,
+            scale: 1
+        )) { error in
+            XCTAssertEqual(
+                error as? VirtualDisplayError,
+                .invalidDimensions(widthPixels: Int(UInt32.max) + 1, heightPixels: 720)
+            )
+        }
+    }
+
+    // MARK: - Real SPI integration test
 
     /// Exercises the real CGVirtualDisplay SPI end to end: create a display,
     /// confirm macOS lists it online, destroy it, confirm it's gone. This is

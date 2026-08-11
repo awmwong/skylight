@@ -29,15 +29,20 @@ final class VirtualDisplayController: VirtualDisplayProviding {
         heightPixels: Int,
         scale: Int
     ) throws -> VirtualDisplayHandle {
-        guard widthPixels > 0, heightPixels > 0, scale > 0 else {
+        // UInt32(exactly:) instead of UInt32(_:): the trapping initializer
+        // would crash the app on out-of-range input instead of throwing.
+        guard widthPixels > 0, heightPixels > 0, scale > 0,
+              let pixelsWide = UInt32(exactly: widthPixels),
+              let pixelsHigh = UInt32(exactly: heightPixels)
+        else {
             throw VirtualDisplayError.invalidDimensions(widthPixels: widthPixels, heightPixels: heightPixels)
         }
 
         let descriptor = CGVirtualDisplayDescriptor()
         descriptor.setDispatchQueue(queue)
         descriptor.name = name
-        descriptor.maxPixelsWide = UInt32(widthPixels)
-        descriptor.maxPixelsHigh = UInt32(heightPixels)
+        descriptor.maxPixelsWide = pixelsWide
+        descriptor.maxPixelsHigh = pixelsHigh
         descriptor.sizeInMillimeters = Self.physicalSize(widthPixels: widthPixels, heightPixels: heightPixels)
         descriptor.productID = Self.productID
         descriptor.vendorID = Self.vendorID

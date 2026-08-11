@@ -32,19 +32,28 @@ final class RegionStore {
     /// Loads saved presets. A missing file yields an empty list. A corrupt
     /// or unreadable file logs the error and also yields an empty list —
     /// callers never crash, and the file is left on disk untouched so it
-    /// can still be inspected or recovered by hand.
+    /// can still be inspected or recovered by hand. Presets whose region
+    /// fails `Region.isValid` are dropped here, at the trust boundary,
+    /// before they can reach the display or capture pipeline.
     func load() -> [RegionPreset] {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             return []
         }
         do {
             let data = try Data(contentsOf: fileURL)
-            return try JSONDecoder().decode([RegionPreset].self, from: data)
+            let presets = try JSONDecoder().decode([RegionPreset].self, from: data)
+            return presets.filter { preset in
+                guard preset.region.isValid else {
+                    Self.logger.error("Dropped preset with invalid region: \(preset.name, privacy: .public)")
+                    return false
+                }
+                return true
+            }
         } catch {
             let path = fileURL.path
             let reason = error.localizedDescription
             Self.logger
-                .error("Failed to read presets at \(path, privacy: .public): \(reason, privacy: .public)")
+                .error("Failed to read presets at \(path, privacy: .private): \(reason, privacy: .public)")
             return []
         }
     }
@@ -73,7 +82,7 @@ final class RegionStore {
             let path = fileURL.path
             let reason = error.localizedDescription
             Self.logger
-                .error("Failed to write presets at \(path, privacy: .public): \(reason, privacy: .public)")
+                .error("Failed to write presets at \(path, privacy: .private): \(reason, privacy: .public)")
             throw RegionStoreError.writeFailed(underlying: error)
         }
     }
