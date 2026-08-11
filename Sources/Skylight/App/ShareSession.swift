@@ -5,8 +5,13 @@ import os
 /// Where a region's source display sits in global CG space and how dense its
 /// backing store is. Injected as a closure so tests don't need live displays.
 struct SourceDisplayInfo {
-    let originCG: CGPoint
+    /// The display's bounds in global CG top-left coordinates (points).
+    let bounds: CGRect
     let scale: CGFloat
+
+    var originCG: CGPoint {
+        bounds.origin
+    }
 }
 
 /// The one place the share flow is wired together:
@@ -28,8 +33,8 @@ final class ShareSession {
     private(set) var state: State = .idle
 
     /// The region being shared, tracking live moves/resizes. Kept after a
-    /// stop so "share the same region again" (hotkey, T9) has something to
-    /// reuse.
+    /// stop so the hotkey's "share the same region again" path has something
+    /// to reuse.
     private(set) var currentRegion: Region?
 
     /// How errors reach the user. Assigned by the menu layer (NSAlert);
@@ -95,13 +100,17 @@ final class ShareSession {
                     selector.dismiss()
                     return
                 }
-                Task { await self.share(region, keepOverlay: true) }
+                Task { [weak self] in await self?.share(region, keepOverlay: true) }
             }
         )
     }
 
     /// Preset recall / hotkey re-share: share a known region with no overlay.
+    /// A running share is replaced, not silently kept.
     func startSharing(with region: Region) async {
+        if state == .sharing {
+            await stopSharing()
+        }
         guard state == .idle else { return }
         state = .selecting
         await share(region, keepOverlay: false)
@@ -109,8 +118,11 @@ final class ShareSession {
 
     func stopSharing() async {
         guard state == .sharing else { return }
-        await teardownShare()
+        // Leave .sharing before the first await so a second stop, a capture
+        // error, or a border drag arriving mid-teardown finds the guards
+        // closed instead of racing this teardown.
         state = .idle
+        await teardownShare()
     }
 
     /// Synchronous last-resort teardown for `applicationWillTerminate`. The
@@ -124,8 +136,16 @@ final class ShareSession {
 
     // MARK: - Share lifecycle
 
-    private func share(_ region: Region, keepOverlay: Bool) async {
-        guard let info = preflight(region) else { return }
+    private func share(_ requestedRegion: Region, keepOverlay: Bool) async {
+        guard let info = preflight(requestedRegion) else { return }
+
+        // A recalled preset can be stale: the display may have moved, shrunk,
+        // or changed scale since the region was saved. Clamp against the
+        // display's current bounds so the capture crop always exists.
+        let region = Region(
+            displayID: requestedRegion.displayID,
+            rect: Geometry.clamp(requestedRegion.rect, toDisplayBounds: info.bounds)
+        )
 
         do {
             try await startPipeline(region: region, info: info, keepOverlay: keepOverlay)
@@ -163,11 +183,13 @@ final class ShareSession {
     }
 
     private func startPipeline(region: Region, info: SourceDisplayInfo, keepOverlay: Bool) async throws {
-        let pixelSize = Geometry.pixelSize(forPoints: region.rect.size, scale: info.scale)
+        // Same rounding as the capture output (CaptureConfig), so the display
+        // and the frames it shows never differ by a letterbox sliver.
+        let pixelSize = Geometry.evenPixelSize(forPoints: region.rect.size, scale: info.scale)
         let handle = try displayProvider.createDisplay(
             name: AppInfo.virtualDisplayName,
-            widthPixels: Int(pixelSize.width),
-            heightPixels: Int(pixelSize.height),
+            widthPixels: pixelSize.width,
+            heightPixels: pixelSize.height,
             scale: Int(info.scale)
         )
         displayHandle = handle
@@ -196,35 +218,39 @@ final class ShareSession {
     }
 
     private func teardownShare() async {
+        // Claim every resource synchronously (no await above this block), so
+        // a re-entrant call finds nothing left to tear down twice.
         framePump?.cancel()
         framePump = nil
         regionUpdateTask?.cancel()
         regionUpdateTask = nil
         pendingRegion = nil
-
-        if let capture {
-            await capture.stop()
-        }
+        let captureToStop = capture
         capture = nil
+        let handleToDestroy = displayHandle
+        displayHandle = nil
 
         mirror.dismiss()
         selector.dismiss()
 
-        if let displayHandle {
+        if let captureToStop {
+            await captureToStop.stop()
+        }
+
+        if let handleToDestroy {
             do {
-                try displayProvider.destroyDisplay(displayHandle)
+                try displayProvider.destroyDisplay(handleToDestroy)
             } catch {
                 Self.logger.error("destroying virtual display failed: \(error, privacy: .public)")
             }
         }
-        displayHandle = nil
     }
 
     private func captureFailed(_ error: Error) {
         guard state == .sharing else { return }
+        state = .idle
         Task {
             await self.teardownShare()
-            self.state = .idle
             self.surface("Sharing stopped: \(self.userDescription(of: error))")
         }
     }
@@ -241,7 +267,7 @@ final class ShareSession {
 
         guard regionUpdateTask == nil else { return }
         regionUpdateTask = Task { [weak self] in
-            while let self, let next = pendingRegion {
+            while let self, !Task.isCancelled, let next = pendingRegion {
                 pendingRegion = nil
                 do {
                     try await capture.updateRegion(next)

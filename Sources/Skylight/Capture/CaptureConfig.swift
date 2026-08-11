@@ -39,9 +39,9 @@ struct CaptureConfig: Equatable {
             height: region.rect.height
         )
 
-        let pixelSize = Geometry.pixelSize(forPoints: region.rect.size, scale: displayScale)
-        pixelWidth = Self.roundedDownToEven(pixelSize.width)
-        pixelHeight = Self.roundedDownToEven(pixelSize.height)
+        let pixelSize = Geometry.evenPixelSize(forPoints: region.rect.size, scale: displayScale)
+        pixelWidth = pixelSize.width
+        pixelHeight = pixelSize.height
 
         showsCursor = options.showsCursor
         minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(options.framesPerSecond))
@@ -60,13 +60,5 @@ struct CaptureConfig: Equatable {
     /// selection overlay or mirror window.
     static func isOwnWindow(_ window: SCWindow) -> Bool {
         window.owningApplication?.bundleIdentifier == excludedBundleIdentifier
-    }
-
-    /// Video encoders require even pixel dimensions. Rounding down never
-    /// requests more pixels than the region has, so the output never grows
-    /// past what the user selected.
-    private static func roundedDownToEven(_ value: CGFloat) -> Int {
-        let whole = Int(value.rounded(.down))
-        return whole - whole % 2
     }
 }

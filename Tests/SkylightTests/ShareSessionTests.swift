@@ -40,7 +40,10 @@ final class ShareSessionTests: XCTestCase {
             },
             sourceDisplayInfo: { displayID in
                 guard displayID == 1 else { return nil }
-                return SourceDisplayInfo(originCG: .zero, scale: 2)
+                return SourceDisplayInfo(
+                    bounds: CGRect(x: 0, y: 0, width: 2000, height: 1200),
+                    scale: 2
+                )
             },
             hasScreenRecordingPermission: { hasPermission },
             requestScreenRecordingPermission: {}
@@ -165,6 +168,49 @@ final class ShareSessionTests: XCTestCase {
         XCTAssertEqual(displays.createCalls.count, 1)
     }
 
+    func testRecalledRegionIsClampedToCurrentDisplayBounds() async {
+        let session = makeSession()
+        let offscreen = Region(displayID: 1, rect: CGRect(x: 1800, y: 1000, width: 640, height: 360))
+
+        await session.startSharing(with: offscreen)
+
+        XCTAssertEqual(session.state, .sharing)
+        let clamped = CGRect(x: 1360, y: 840, width: 640, height: 360)
+        XCTAssertEqual(captures[0].region.rect, clamped)
+        XCTAssertEqual(session.currentRegion?.rect, clamped)
+    }
+
+    func testStartSharingWithRegionWhileSharingRestartsWithNewRegion() async {
+        let session = makeSession()
+        await session.startSharing(with: region)
+        let second = Region(displayID: 1, rect: CGRect(x: 0, y: 0, width: 320, height: 180))
+
+        await session.startSharing(with: second)
+
+        XCTAssertEqual(session.state, .sharing)
+        XCTAssertEqual(captures.count, 2)
+        XCTAssertEqual(captures[0].stopCount, 1)
+        XCTAssertEqual(displays.createCalls.count, 2)
+        XCTAssertEqual(displays.liveDisplayIDs.count, 1, "the first share's display must be gone")
+        XCTAssertEqual(session.currentRegion, second)
+    }
+
+    // MARK: - Teardown re-entrancy
+
+    func testConcurrentStopSharingStopsCaptureOnce() async {
+        let session = makeSession()
+        await session.startSharing(with: region)
+
+        async let first: Void = session.stopSharing()
+        async let second: Void = session.stopSharing()
+        _ = await (first, second)
+
+        XCTAssertEqual(session.state, .idle)
+        XCTAssertEqual(captures[0].stopCount, 1)
+        XCTAssertTrue(displays.liveDisplayIDs.isEmpty)
+        XCTAssertTrue(surfacedErrors.isEmpty)
+    }
+
     // MARK: - Frame pump
 
     func testFramesFlowFromCaptureToMirror() async throws {
@@ -205,149 +251,5 @@ final class ShareSessionTests: XCTestCase {
             }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
-    }
-}
-
-// MARK: - Fakes
-
-@MainActor
-private final class FakeSelector: RegionSelecting {
-    private(set) var presentCount = 0
-    private(set) var inSharingMode = false
-    private(set) var dismissed = false
-    private var onChange: ((Region) -> Void)?
-    private var completion: ((Region?) -> Void)?
-
-    func present(onChange: @escaping (Region) -> Void, completion: @escaping (Region?) -> Void) {
-        presentCount += 1
-        self.onChange = onChange
-        self.completion = completion
-    }
-
-    func enterSharingMode(onStop _: @escaping () -> Void) {
-        inSharingMode = true
-    }
-
-    func dismiss() {
-        dismissed = true
-    }
-
-    /// Simulates the user confirming. The share start-up it triggers is
-    /// async — tests wait on an observable condition afterwards.
-    func confirm(_ region: Region) {
-        completion?(region)
-    }
-
-    func cancel() {
-        completion?(nil)
-    }
-
-    func change(_ region: Region) {
-        onChange?(region)
-    }
-}
-
-@MainActor
-private final class FakeMirror: MirrorPresenting {
-    private(set) var presentedDisplayIDs: [CGDirectDisplayID] = []
-    private(set) var enqueuedCount = 0
-    private(set) var dismissed = false
-
-    func present(onDisplayID displayID: CGDirectDisplayID) async throws {
-        presentedDisplayIDs.append(displayID)
-    }
-
-    func enqueue(_: CMSampleBuffer) {
-        enqueuedCount += 1
-    }
-
-    func dismiss() {
-        dismissed = true
-    }
-}
-
-private final class FakeCapture: CaptureSessionControlling {
-    let frames: AsyncStream<CMSampleBuffer>
-    var onError: ((Error) -> Void)?
-
-    private(set) var started = false
-    private(set) var stopped = false
-    private(set) var updatedRegions: [Region] = []
-
-    private let startError: Error?
-    private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
-
-    init(region _: Region, startError: Error?) {
-        self.startError = startError
-        var continuation: AsyncStream<CMSampleBuffer>.Continuation?
-        frames = AsyncStream { continuation = $0 }
-        self.continuation = continuation
-    }
-
-    func start() async throws {
-        if let startError {
-            throw startError
-        }
-        started = true
-    }
-
-    func stop() async {
-        stopped = true
-        continuation?.finish()
-    }
-
-    func updateRegion(_ region: Region) async throws {
-        updatedRegions.append(region)
-    }
-
-    func yield(_ buffer: CMSampleBuffer) {
-        continuation?.yield(buffer)
-    }
-}
-
-/// Wraps the shared fake with call recording ShareSession tests need.
-private final class RecordingDisplayProvider: VirtualDisplayProviding {
-    struct CreateCall: Equatable {
-        let name: String
-        let widthPixels: Int
-        let heightPixels: Int
-        let scale: Int
-    }
-
-    private let fake = FakeVirtualDisplayProvider()
-    private(set) var createCalls: [CreateCall] = []
-    private(set) var lastHandle: VirtualDisplayHandle?
-    private(set) var destroyAllCalled = false
-
-    var liveDisplayIDs: Set<CGDirectDisplayID> {
-        fake.liveDisplayIDs
-    }
-
-    func createDisplay(
-        name: String,
-        widthPixels: Int,
-        heightPixels: Int,
-        scale: Int
-    ) throws -> VirtualDisplayHandle {
-        let handle = try fake.createDisplay(
-            name: name,
-            widthPixels: widthPixels,
-            heightPixels: heightPixels,
-            scale: scale
-        )
-        createCalls.append(
-            CreateCall(name: name, widthPixels: widthPixels, heightPixels: heightPixels, scale: scale)
-        )
-        lastHandle = handle
-        return handle
-    }
-
-    func destroyDisplay(_ handle: VirtualDisplayHandle) throws {
-        try fake.destroyDisplay(handle)
-    }
-
-    func destroyAll() {
-        destroyAllCalled = true
-        fake.destroyAll()
     }
 }

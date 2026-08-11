@@ -71,6 +71,22 @@ enum Geometry {
         CGSize(width: size.width * scale, height: size.height * scale)
     }
 
+    /// Pixel dimensions rounded down to even numbers. Video encoders require
+    /// even dimensions, and the virtual display must use the same rounding as
+    /// the capture output — otherwise the two drift by a pixel and every
+    /// share gets a permanent letterbox sliver.
+    static func evenPixelSize(forPoints size: CGSize, scale: CGFloat) -> (width: Int, height: Int) {
+        let pixels = pixelSize(forPoints: size, scale: scale)
+        return (roundedDownToEven(pixels.width), roundedDownToEven(pixels.height))
+    }
+
+    /// Rounding down never requests more pixels than the region has, so the
+    /// output never grows past what the user selected.
+    private static func roundedDownToEven(_ value: CGFloat) -> Int {
+        let whole = Int(value.rounded(.down))
+        return whole - whole % 2
+    }
+
     static func pixelRect(forPoints rect: CGRect, scale: CGFloat) -> CGRect {
         CGRect(
             x: rect.minX * scale,

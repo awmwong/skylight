@@ -86,7 +86,9 @@ final class CaptureOptionsPreferenceTests: XCTestCase {
                 receivedOptions.append(options)
                 return StubCapture()
             },
-            sourceDisplayInfo: { _ in SourceDisplayInfo(originCG: .zero, scale: 1) },
+            sourceDisplayInfo: { _ in
+                SourceDisplayInfo(bounds: CGRect(x: 0, y: 0, width: 1000, height: 1000), scale: 1)
+            },
             hasScreenRecordingPermission: { true },
             requestScreenRecordingPermission: {},
             captureOptions: { CaptureOptions(showsCursor: Preferences.showsCursor) }

@@ -125,6 +125,24 @@ final class GeometryTests: XCTestCase {
 
     // MARK: - Points <-> pixels scaling
 
+    func testEvenPixelSizeRoundsEachDimensionDownToEven() {
+        let odd = CGSize(width: 641, height: 361)
+
+        let evened = Geometry.evenPixelSize(forPoints: odd, scale: 1)
+
+        XCTAssertEqual(evened.width, 640)
+        XCTAssertEqual(evened.height, 360)
+    }
+
+    func testEvenPixelSizeAppliesScaleBeforeRounding() {
+        let fractional = CGSize(width: 640.5, height: 360)
+
+        let evened = Geometry.evenPixelSize(forPoints: fractional, scale: 2)
+
+        XCTAssertEqual(evened.width, 1280)
+        XCTAssertEqual(evened.height, 720)
+    }
+
     func testPixelSizeAtOneX() {
         let size = CGSize(width: 640, height: 480)
 

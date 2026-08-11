@@ -10,8 +10,10 @@ import os
 /// or dismiss it if the share failed to start.
 @MainActor
 final class SelectionOverlayController: NSObject, RegionSelecting {
-    /// The capture filter (T4) excludes any window with this title, so the
-    /// selection border never appears in the mirrored output.
+    /// Debug/accessibility label for the panel. Capture exclusion does not
+    /// use it: `CaptureConfig.isOwnWindow` excludes every Skylight window
+    /// from the capture by bundle identifier, which is what keeps this
+    /// border out of the mirrored output.
     static let windowTitle = "Skylight Selection Overlay"
 
     private static let logger = Logger(subsystem: "com.anthony.skylight", category: "SelectionOverlay")
@@ -95,6 +97,13 @@ final class SelectionOverlayController: NSObject, RegionSelecting {
     private func handleCancel() {
         if let sharingStopHandler {
             sharingStopHandler()
+            return
+        }
+        guard completion != nil else {
+            // Confirm already fired and the share is still starting up.
+            // Dismissing now would strand the session sharing with no
+            // border, so the Esc is ignored; once sharing mode is active,
+            // Esc stops the share through `sharingStopHandler`.
             return
         }
         let completion = completion

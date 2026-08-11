@@ -85,7 +85,7 @@ final class AppServices {
     private static func sourceDisplayInfo(for displayID: CGDirectDisplayID) -> SourceDisplayInfo? {
         let bounds = CGDisplayBounds(displayID)
         guard bounds.width > 0, bounds.height > 0 else { return nil }
-        return SourceDisplayInfo(originCG: bounds.origin, scale: backingScale(for: displayID))
+        return SourceDisplayInfo(bounds: bounds, scale: backingScale(for: displayID))
     }
 
     private static func backingScale(for displayID: CGDirectDisplayID) -> CGFloat {
