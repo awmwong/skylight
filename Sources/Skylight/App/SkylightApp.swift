@@ -17,7 +17,19 @@ struct SkylightApp: App {
 }
 
 struct MenuContent: View {
+    private let presetStore = RegionStore()
+
     var body: some View {
+        PresetsMenuSection(
+            presets: presetStore.load(),
+            onRecall: { _ in },
+            onDelete: { preset in try? presetStore.delete(named: preset.name) },
+            currentRegionProvider: nil,
+            onSaveCurrentRegion: { _ in }
+        )
+
+        Divider()
+
         Button("Quit \(AppInfo.name)") {
             NSApplication.shared.terminate(nil)
         }
