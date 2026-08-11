@@ -2,6 +2,7 @@
 Skylight.xcodeproj/
 build/
 DerivedData/
+dist/
 .DS_Store
 xcuserdata/
 .claude/
