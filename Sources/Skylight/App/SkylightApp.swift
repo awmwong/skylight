@@ -29,6 +29,7 @@ struct MenuContent: View {
             Button("Selecting Region…") {}.disabled(true)
         case .sharing:
             Button("Stop Sharing") { Task { await session.stopSharing() } }
+            Button("Shared Window: Actual Size") { services.mirrorWindow.snapToActualSize() }
         }
 
         Divider()

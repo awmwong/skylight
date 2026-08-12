@@ -13,10 +13,14 @@ final class AppServices {
     let presetStore = RegionStore()
     let session: ShareSession
 
+    /// Held concretely (not just as the session's `MirrorPresenting`) so the
+    /// menu can drive window-only commands like Actual Size.
+    let mirrorWindow = MirrorWindowController()
+
     private init() {
         session = ShareSession(
             selector: SelectionOverlayController(initialRegionProvider: { Preferences.lastSharedRegion }),
-            mirror: MirrorWindowController(),
+            mirror: mirrorWindow,
             captureFactory: { region, info, options in
                 CaptureEngine(
                     region: region,

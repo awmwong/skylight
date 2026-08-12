@@ -13,6 +13,12 @@ final class FrameRendererView: NSView {
     let displayLayer = AVSampleBufferDisplayLayer()
     private var latestBufferSize: CGSize?
 
+    /// The pixel size of the most recent captured frame — the region's native
+    /// capture resolution. Nil until the first frame arrives.
+    var sourcePixelSize: CGSize? {
+        latestBufferSize
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         configureLayers()

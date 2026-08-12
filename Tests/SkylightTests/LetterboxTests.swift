@@ -98,4 +98,23 @@ final class LetterboxTests: XCTestCase {
         try view.enqueue(SampleBufferFixtures.make(width: 500, height: 2000))
         XCTAssertEqual(view.displayLayer.frame, CGRect(x: 375, y: 0, width: 250, height: 1000))
     }
+
+    // MARK: - Actual-size window sizing
+
+    func testActualSizeDividesPixelsByBackingScaleForRetina() {
+        // A 1280×720 capture on a 2x display is 1:1 in a 640×360-point window.
+        let points = MirrorWindowController.actualSizeContentPoints(
+            pixelSize: CGSize(width: 1280, height: 720),
+            backingScale: 2
+        )
+        XCTAssertEqual(points, CGSize(width: 640, height: 360))
+    }
+
+    func testActualSizeMatchesPixelsForNonRetina() {
+        let points = MirrorWindowController.actualSizeContentPoints(
+            pixelSize: CGSize(width: 1280, height: 720),
+            backingScale: 1
+        )
+        XCTAssertEqual(points, CGSize(width: 1280, height: 720))
+    }
 }
