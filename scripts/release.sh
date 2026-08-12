@@ -17,10 +17,9 @@ if [ ! -d "$APP" ]; then
   exit 1
 fi
 
-# --options runtime keeps the hardened runtime the Release build enables;
-# a bare re-sign would silently strip it. No --deep: Xcode already signed
-# nested code, and --deep re-signs it incorrectly.
-codesign --force --options runtime --sign - "$APP"
+# No re-sign here: xcodebuild already signed the app with the project's
+# stable identity and the hardened runtime. Re-signing ad-hoc would strip
+# both and reset the app's Screen Recording grant.
 
 mkdir -p dist
 ZIP_PATH="dist/Skylight-${VERSION}.zip"

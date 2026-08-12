@@ -7,7 +7,11 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
-    CODE_SIGN_IDENTITY: "-"
+    # A stable identity (Apple Development cert), not ad-hoc ("-"): TCC ties
+    # the Screen Recording grant to the signing requirement, and an ad-hoc
+    # signature changes every build, which resets the grant on every rebuild.
+    # Pinned by SHA-1 hash because the keychain holds two copies of the cert.
+    CODE_SIGN_IDENTITY: 86F2A04CDF1A255F70F91828DC8829016FFA1FE6
 packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
