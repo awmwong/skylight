@@ -72,6 +72,12 @@ struct MenuContent: View {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            AppServices.shared.requestScreenRecordingPermissionAtLaunch()
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         // A leaked CGVirtualDisplay is the one teardown failure users would
         // keep seeing after quit; release displays synchronously here.

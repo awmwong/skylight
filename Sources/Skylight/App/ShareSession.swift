@@ -41,7 +41,7 @@ final class ShareSession {
     /// assigned a recorder in tests.
     var onUserFacingError: ((String) -> Void)?
 
-    private static let logger = Logger(subsystem: "com.anthony.skylight", category: "ShareSession")
+    private static let logger = Logger(subsystem: "ng.awo.skylight", category: "ShareSession")
 
     private let displayProvider: VirtualDisplayProviding
     private let selector: RegionSelecting

@@ -1,6 +1,6 @@
 name: Skylight
 options:
-  bundleIdPrefix: com.anthony
+  bundleIdPrefix: ng.awo
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
@@ -27,7 +27,7 @@ targets:
       - package: KeyboardShortcuts
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.anthony.skylight
+        PRODUCT_BUNDLE_IDENTIFIER: ng.awo.skylight
         SWIFT_OBJC_BRIDGING_HEADER: Sources/SkylightSPI/CGVirtualDisplaySPI.h
       configs:
         # Release only: hardened runtime blocks library injection into a

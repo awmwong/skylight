@@ -312,31 +312,27 @@ occasionally flaky under load.
 user account, or remove Skylight's existing grant first:
 
 ```sh
-tccutil reset ScreenCapture com.anthony.skylight
+tccutil reset ScreenCapture ng.awo.skylight
 ```
 
 **Steps:**
 
 1. Launch Skylight for the first time (or after the reset above).
-2. Menu bar → **Start Sharing…**, select a region, confirm it.
-3. Confirm Skylight does **not** crash and instead shows an alert saying
-   Screen Recording permission is needed, with a path to grant it (System
-   Settings → Privacy & Security → Screen Recording).
-4. Open **System Settings → Privacy & Security → Screen Recording**.
-5. Confirm **Skylight** now appears in the app list (macOS adds it to the
-   list on first request, before the toggle is turned on).
-6. Turn the toggle on for Skylight.
-7. Try **Start Sharing…** again immediately, without relaunching.
-8. Confirm macOS still blocks capture (existing process keeps the old
-   permission state) and the same alert appears, or the share silently
-   produces no frames.
-9. Quit Skylight fully and relaunch it (`scripts/run.sh` or reopen the
-   built app).
-10. Try **Start Sharing…** again.
+2. Confirm the Screen Recording permission request appears at launch, with
+   no share attempt needed.
+3. Confirm a share attempt before granting shows an alert saying Screen
+   Recording permission is needed, with a path to grant it (System
+   Settings → Privacy & Security → Screen Recording) — and does not crash.
+4. Open **System Settings → Privacy & Security → Screen Recording** and
+   confirm **Skylight** appears in the app list. Turn its toggle on.
+5. Quit Skylight fully and relaunch it (macOS applies the grant only after
+   a restart of the app).
+6. Confirm no permission request appears at this launch.
+7. Menu bar → **Start Sharing…**, select a region, confirm it, and confirm
+   the share starts.
 
-**Expected result:** Skylight appears in the Screen Recording list after the
-first attempt, before permission is granted. Granting the toggle has no
-effect until the app is relaunched — sharing only starts successfully after
-step 10, confirming the relaunch requirement.
+**Expected result:** The permission request comes at first launch, not
+mid-share. Skylight appears in the Screen Recording list right away. After
+grant + relaunch, launches are prompt-free and sharing works.
 
 **Result:** [ ] Pass  [ ] Fail — Notes: _______________________

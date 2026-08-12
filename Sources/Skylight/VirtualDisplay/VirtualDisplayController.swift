@@ -11,7 +11,7 @@ final class VirtualDisplayController: VirtualDisplayProviding {
     private static let vendorID: UInt32 = 0xF0F0
     private static let productID: UInt32 = 0x0001
 
-    private let queue = DispatchQueue(label: "com.anthony.skylight.virtualdisplay")
+    private let queue = DispatchQueue(label: "ng.awo.skylight.virtualdisplay")
 
     // CGVirtualDisplay has no explicit teardown call: releasing the last
     // strong reference is what makes the display disappear. Holding it here

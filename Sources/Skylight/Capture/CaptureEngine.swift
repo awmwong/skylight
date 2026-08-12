@@ -25,7 +25,7 @@ enum CaptureError: Error, Equatable {
 /// `ShareSession` is the sole caller of.
 final class CaptureEngine: NSObject {
     private let logger = Logger(subsystem: CaptureConfig.excludedBundleIdentifier, category: "capture")
-    private let sampleQueue = DispatchQueue(label: "com.anthony.skylight.capture.frames")
+    private let sampleQueue = DispatchQueue(label: "ng.awo.skylight.capture.frames")
 
     private let region: Region
     private let displayOrigin: CGPoint

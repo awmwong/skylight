@@ -45,8 +45,8 @@ Your conferencing app shares the virtual display like any physical screen.
 1. Install the tools: `brew install xcodegen swiftformat swiftlint`.
 2. Run `scripts/run.sh`. The script generates the Xcode project, builds the
    app, and starts it.
-3. On the first share attempt, macOS asks for Screen Recording permission.
-   Grant it in System Settings → Privacy & Security → Screen Recording.
+3. At first launch, macOS asks for Screen Recording permission. Grant it
+   in System Settings → Privacy & Security → Screen Recording.
 4. Start the app again. macOS applies the permission only after a restart
    of the app.
 

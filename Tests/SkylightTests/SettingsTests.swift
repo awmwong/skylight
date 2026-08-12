@@ -4,7 +4,7 @@ import CoreMedia
 import XCTest
 
 final class PreferencesTests: XCTestCase {
-    private static let suiteName = "com.anthony.skylight.tests.preferences"
+    private static let suiteName = "ng.awo.skylight.tests.preferences"
     private var testDefaults: UserDefaults!
     private var previousDefaults: UserDefaults!
 
@@ -81,7 +81,7 @@ final class HotkeyControllerTests: XCTestCase {
 /// next one without any capture-side wiring.
 @MainActor
 final class CaptureOptionsPreferenceTests: XCTestCase {
-    private static let suiteName = "com.anthony.skylight.tests.captureoptions"
+    private static let suiteName = "ng.awo.skylight.tests.captureoptions"
     private var testDefaults: UserDefaults!
     private var previousDefaults: UserDefaults!
 

@@ -24,7 +24,7 @@ struct CaptureConfig: Equatable {
     /// The bundle identifier ScreenCaptureKit's window list is filtered
     /// against so Skylight's own windows never appear in the capture
     /// (avoids recursive/self-referential frames).
-    static let excludedBundleIdentifier = "com.anthony.skylight"
+    static let excludedBundleIdentifier = "ng.awo.skylight"
 
     init(
         region: Region,

@@ -12,7 +12,7 @@ enum RegionStoreError: Error {
 /// directory instead of the real Application Support folder.
 final class RegionStore {
     private static let fileName = "presets.json"
-    private static let logger = Logger(subsystem: "com.anthony.skylight", category: "RegionStore")
+    private static let logger = Logger(subsystem: "ng.awo.skylight", category: "RegionStore")
 
     private let directory: URL
 

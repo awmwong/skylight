@@ -41,6 +41,15 @@ final class AppServices {
         }
     }
 
+    /// Ask for Screen Recording at launch, so the grant-and-relaunch dance
+    /// happens before the first share attempt instead of interrupting it.
+    /// `ShareSession.preflight` still guards every share for the denied case.
+    func requestScreenRecordingPermissionAtLaunch() {
+        if !CGPreflightScreenCaptureAccess() {
+            CGRequestScreenCaptureAccess()
+        }
+    }
+
     private func handleHotkey() {
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -103,7 +112,7 @@ final class AppServices {
 enum Preferences {
     private static let showsCursorKey = "showsCursor"
     private static let lastSharedRegionKey = "lastSharedRegion"
-    private static let logger = Logger(subsystem: "com.anthony.skylight", category: "Preferences")
+    private static let logger = Logger(subsystem: "ng.awo.skylight", category: "Preferences")
 
     static var defaults: UserDefaults = .standard
 

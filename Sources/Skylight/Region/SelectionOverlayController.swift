@@ -15,7 +15,7 @@ final class SelectionOverlayController: NSObject, RegionSelecting {
     /// border out of the mirrored output.
     static let windowTitle = "Skylight Selection Overlay"
 
-    private static let logger = Logger(subsystem: "com.anthony.skylight", category: "SelectionOverlay")
+    private static let logger = Logger(subsystem: "ng.awo.skylight", category: "SelectionOverlay")
 
     private let initialRegionProvider: () -> Region?
 

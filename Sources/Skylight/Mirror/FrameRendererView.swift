@@ -8,7 +8,7 @@ import os
 /// `AVSampleBufferDisplayLayer` (hardware-accelerated video display) rather
 /// than drawing into a bitmap context.
 final class FrameRendererView: NSView {
-    private static let logger = Logger(subsystem: "com.anthony.skylight", category: "FrameRendererView")
+    private static let logger = Logger(subsystem: "ng.awo.skylight", category: "FrameRendererView")
 
     let displayLayer = AVSampleBufferDisplayLayer()
     private var latestBufferSize: CGSize?
