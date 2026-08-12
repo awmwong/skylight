@@ -1,51 +1,17 @@
-import AppKit
+import CoreGraphics
 import CoreMedia
 
-enum MirrorError: Error, Equatable {
-    /// The virtual display never showed up in `NSScreen.screens` — AppKit
-    /// did not pick up the new display within the polling window.
-    case screenNotFound(CGDirectDisplayID)
-}
-
-/// What `ShareSession` needs from the mirror output. `DisplayMirror` is the
-/// real implementation; tests use a fake.
+/// What `ShareSession` needs from the mirror output: a window that shows the
+/// live region and that the user shares in a conferencing app.
+/// `MirrorWindowController` is the real implementation; tests use a fake.
 @MainActor
 protocol MirrorPresenting: AnyObject {
-    func present(onDisplayID displayID: CGDirectDisplayID) async throws
+    /// The user closed the mirror window. The session treats this as "stop
+    /// sharing".
+    var onClose: (() -> Void)? { get set }
+
+    /// Shows the mirror window, sized from the region's point size.
+    func present(contentSize: CGSize)
     func enqueue(_ sampleBuffer: CMSampleBuffer)
     func dismiss()
-}
-
-/// Puts the mirror window on the virtual display and feeds it frames. A
-/// freshly created CGVirtualDisplay reaches `NSScreen.screens` asynchronously,
-/// so `present` polls for it briefly instead of failing on the first miss.
-@MainActor
-final class DisplayMirror: MirrorPresenting {
-    private static let pollInterval: Duration = .milliseconds(50)
-    private static let pollAttempts = 60 // 3 seconds total
-
-    private let windowController = MirrorWindowController()
-
-    func present(onDisplayID displayID: CGDirectDisplayID) async throws {
-        let screen = try await waitForScreen(displayID: displayID)
-        windowController.show(on: screen)
-    }
-
-    func enqueue(_ sampleBuffer: CMSampleBuffer) {
-        windowController.rendererView.enqueue(sampleBuffer)
-    }
-
-    func dismiss() {
-        windowController.hide()
-    }
-
-    private func waitForScreen(displayID: CGDirectDisplayID) async throws -> NSScreen {
-        for _ in 0 ..< Self.pollAttempts {
-            if let screen = NSScreen.screen(for: displayID) {
-                return screen
-            }
-            try await Task.sleep(for: Self.pollInterval)
-        }
-        throw MirrorError.screenNotFound(displayID)
-    }
 }

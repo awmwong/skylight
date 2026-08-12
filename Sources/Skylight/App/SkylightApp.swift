@@ -2,7 +2,7 @@ import SwiftUI
 
 enum AppInfo {
     static let name = "Skylight"
-    static let virtualDisplayName = "Skylight Display"
+    static let sharedWindowTitle = "Skylight — Shared Region"
 }
 
 @main
@@ -79,8 +79,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // A leaked CGVirtualDisplay is the one teardown failure users would
-        // keep seeing after quit; release displays synchronously here.
         MainActor.assumeIsolated {
             AppServices.shared.session.terminate()
         }

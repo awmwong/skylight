@@ -2,14 +2,14 @@
 
 ![Skylight banner](assets/banner.png)
 
-Share one part of your screen in any app that can share a display.
+Share one part of your screen in any app that can share a window.
 
 Skylight is a macOS menu bar utility. You select a part of your screen with a
-border rectangle. Skylight creates a virtual display named "Skylight Display"
-and mirrors the selected part onto it in real time. In Zoom, Google Meet,
-OBS, or any other app, you share the virtual display. Viewers see only the
-selected part. This is the "share portion of screen" feature from Zoom, made
-generic.
+border rectangle. Skylight shows that region, live, in a normal window titled
+"Skylight — Shared Region". In Zoom, Google Meet, OBS, or any other app, you
+share that window. Viewers see only the selected part. This is the "share
+portion of screen" feature from Zoom, made generic — and window sharing is
+the path every conferencing app makes easy.
 
 ## Features
 
@@ -19,20 +19,15 @@ generic.
 - Named region presets. Save a region once, recall it from the menu.
 - Global hotkey to start and stop sharing.
 - A setting to show or hide the cursor in the shared output.
-- HiDPI aware: the virtual display matches the pixel density of the source
-  display.
+- Only public APIs. No private interfaces, no App Store blockers.
 
 ## How it works
 
-ScreenCaptureKit captures the selected region as a video stream. A
-borderless window fills the virtual display and renders the captured frames.
-Your conferencing app shares the virtual display like any physical screen.
-
-> [!CAUTION]
-> Skylight creates the virtual display with `CGVirtualDisplay`, a private
-> CoreGraphics interface. Apple can change or remove this interface in any
-> macOS update. Do not submit builds to the App Store. The interface is
-> verified on macOS 26.5.
+ScreenCaptureKit captures the selected region as a video stream. Skylight
+renders the frames into a normal window. Your conferencing app shares that
+window like any other. The mirror window is excluded from Skylight's own
+capture, so dragging it over the captured region never produces a recursive
+"hall of mirrors".
 
 ## Requirements
 
@@ -61,11 +56,13 @@ so macOS does not prompt again.
 1. Click the Skylight icon in the menu bar. Select "Start Sharing…".
 2. Move and resize the yellow border until it covers the part you want to
    share. Press Return, or click the "Start Sharing" button in its center.
-   The border disappears and the share is live.
-3. In your conferencing app, share the display named "Skylight Display".
-4. To stop, select "Stop Sharing" from the menu bar icon (or press the
-   hotkey). To share a different part, stop and start a new share — the
-   viewport is fixed while a share runs.
+   The border disappears and the "Skylight — Shared Region" window appears.
+3. In your conferencing app, choose to share a window, and pick "Skylight —
+   Shared Region". You can move or resize that window, or park it on another
+   Space; it keeps sharing. Do not minimize it.
+4. To stop, close the window, select "Stop Sharing" from the menu bar icon,
+   or press the hotkey. To share a different part, stop and start a new
+   share — the viewport is fixed while a share runs.
 
 To save the current region as a preset, select "Save Current Region…" while
 a share runs. To set the hotkey and the cursor option, select "Settings…".
@@ -80,14 +77,5 @@ xcodebuild -project Skylight.xcodeproj -scheme Skylight \
   -destination 'platform=macOS,arch=arm64' test \
   -only-testing:SkylightTests/GeometryTests            # run one test class
 swiftformat . && swiftlint                 # format and lint
-scripts/release.sh                         # build a signed local zip
+scripts/release.sh                         # build and install to /Applications
 ```
-
-The manual verification checklist is in
-[docs/smoke-test.md](docs/smoke-test.md). One test
-(`testRealVirtualDisplayLifecycle`) creates a real virtual display, so the
-suite needs a logged-in GUI session.
-
-All `CGVirtualDisplay` usage lives in `Sources/SkylightSPI/` and
-`Sources/Skylight/VirtualDisplay/`. No other module touches the private
-interface.

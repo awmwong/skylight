@@ -3,9 +3,9 @@ import CoreGraphics
 import KeyboardShortcuts
 import os
 
-/// Composition root: builds the real `ShareSession` wiring (CGVirtualDisplay
-/// provider, ScreenCaptureKit engine, overlay, mirror) and owns the pieces
-/// the menu and app delegate share.
+/// Composition root: builds the real `ShareSession` wiring (ScreenCaptureKit
+/// engine, selection overlay, mirror window) and owns the pieces the menu and
+/// app delegate share.
 @MainActor
 final class AppServices {
     static let shared = AppServices()
@@ -13,13 +13,10 @@ final class AppServices {
     let presetStore = RegionStore()
     let session: ShareSession
 
-    private let displayProvider = VirtualDisplayController()
-
     private init() {
         session = ShareSession(
-            displayProvider: displayProvider,
             selector: SelectionOverlayController(initialRegionProvider: { Preferences.lastSharedRegion }),
-            mirror: DisplayMirror(),
+            mirror: MirrorWindowController(),
             captureFactory: { region, info, options in
                 CaptureEngine(
                     region: region,

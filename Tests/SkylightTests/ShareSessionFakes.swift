@@ -32,12 +32,16 @@ final class FakeSelector: RegionSelecting {
 
 @MainActor
 final class FakeMirror: MirrorPresenting {
-    private(set) var presentedDisplayIDs: [CGDirectDisplayID] = []
+    var onClose: (() -> Void)?
+    private(set) var presentCount = 0
+    private(set) var presentedSizes: [CGSize] = []
     private(set) var enqueuedCount = 0
     private(set) var dismissed = false
 
-    func present(onDisplayID displayID: CGDirectDisplayID) async throws {
-        presentedDisplayIDs.append(displayID)
+    func present(contentSize: CGSize) {
+        presentCount += 1
+        presentedSizes.append(contentSize)
+        dismissed = false
     }
 
     func enqueue(_: CMSampleBuffer) {
@@ -46,6 +50,11 @@ final class FakeMirror: MirrorPresenting {
 
     func dismiss() {
         dismissed = true
+    }
+
+    /// Simulates the user closing the mirror window.
+    func closeWindow() {
+        onClose?()
     }
 }
 
@@ -84,52 +93,5 @@ final class FakeCapture: CaptureSessionControlling {
 
     func yield(_ buffer: CMSampleBuffer) {
         continuation?.yield(buffer)
-    }
-}
-
-/// Wraps the shared fake with call recording ShareSession tests need.
-final class RecordingDisplayProvider: VirtualDisplayProviding {
-    struct CreateCall: Equatable {
-        let name: String
-        let widthPixels: Int
-        let heightPixels: Int
-        let scale: Int
-    }
-
-    private let fake = FakeVirtualDisplayProvider()
-    private(set) var createCalls: [CreateCall] = []
-    private(set) var lastHandle: VirtualDisplayHandle?
-    private(set) var destroyAllCalled = false
-
-    var liveDisplayIDs: Set<CGDirectDisplayID> {
-        fake.liveDisplayIDs
-    }
-
-    func createDisplay(
-        name: String,
-        widthPixels: Int,
-        heightPixels: Int,
-        scale: Int
-    ) throws -> VirtualDisplayHandle {
-        let handle = try fake.createDisplay(
-            name: name,
-            widthPixels: widthPixels,
-            heightPixels: heightPixels,
-            scale: scale
-        )
-        createCalls.append(
-            CreateCall(name: name, widthPixels: widthPixels, heightPixels: heightPixels, scale: scale)
-        )
-        lastHandle = handle
-        return handle
-    }
-
-    func destroyDisplay(_ handle: VirtualDisplayHandle) throws {
-        try fake.destroyDisplay(handle)
-    }
-
-    func destroyAll() {
-        destroyAllCalled = true
-        fake.destroyAll()
     }
 }

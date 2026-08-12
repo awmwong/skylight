@@ -15,12 +15,12 @@ struct SourceDisplayInfo {
 }
 
 /// The one place the share flow is wired together:
-/// select a region → create a virtual display sized to it → capture the
-/// region → render frames into the mirror window on the virtual display.
+/// select a region → capture it → render frames into the mirror window that
+/// the user shares in a conferencing app.
 ///
 /// Owns the idle → selecting → sharing state machine and guarantees teardown:
-/// every path out of `.sharing` (stop, failure, quit) releases the capture,
-/// the mirror window, and the virtual display, in that order.
+/// every path out of `.sharing` (stop, failure, window closed) releases the
+/// capture and the mirror window.
 @MainActor
 @Observable
 final class ShareSession {
@@ -43,7 +43,6 @@ final class ShareSession {
 
     private static let logger = Logger(subsystem: "ng.awo.skylight", category: "ShareSession")
 
-    private let displayProvider: VirtualDisplayProviding
     private let selector: RegionSelecting
     private let mirror: MirrorPresenting
     private let captureFactory: (Region, SourceDisplayInfo, CaptureOptions) -> CaptureSessionControlling
@@ -53,12 +52,10 @@ final class ShareSession {
     private let captureOptions: () -> CaptureOptions
     private let persistLastRegion: (Region) -> Void
 
-    private var displayHandle: VirtualDisplayHandle?
     private var capture: CaptureSessionControlling?
     private var framePump: Task<Void, Never>?
 
     init(
-        displayProvider: VirtualDisplayProviding,
         selector: RegionSelecting,
         mirror: MirrorPresenting,
         captureFactory: @escaping (Region, SourceDisplayInfo, CaptureOptions) -> CaptureSessionControlling,
@@ -68,7 +65,6 @@ final class ShareSession {
         captureOptions: @escaping () -> CaptureOptions = { CaptureOptions() },
         persistLastRegion: @escaping (Region) -> Void = { _ in }
     ) {
-        self.displayProvider = displayProvider
         self.selector = selector
         self.mirror = mirror
         self.captureFactory = captureFactory
@@ -77,6 +73,10 @@ final class ShareSession {
         self.requestScreenRecordingPermission = requestScreenRecordingPermission
         self.captureOptions = captureOptions
         self.persistLastRegion = persistLastRegion
+
+        mirror.onClose = { [weak self] in
+            Task { [weak self] in await self?.stopSharing() }
+        }
     }
 
     // MARK: - Entry points
@@ -120,13 +120,12 @@ final class ShareSession {
         await teardownShare()
     }
 
-    /// Synchronous last-resort teardown for `applicationWillTerminate`. The
-    /// virtual display is the only leak that can outlive the process wind-down
-    /// gracelessly, so it is released synchronously; the capture stream dies
-    /// with the process.
+    /// Last-resort teardown for `applicationWillTerminate`. Closes the mirror
+    /// window and stops the frame pump; the capture stream dies with the
+    /// process.
     func terminate() {
         framePump?.cancel()
-        displayProvider.destroyAll()
+        mirror.dismiss()
     }
 
     // MARK: - Share lifecycle
@@ -182,17 +181,6 @@ final class ShareSession {
     }
 
     private func startPipeline(region: Region, info: SourceDisplayInfo) async throws {
-        // Same rounding as the capture output (CaptureConfig), so the display
-        // and the frames it shows never differ by a letterbox sliver.
-        let pixelSize = Geometry.evenPixelSize(forPoints: region.rect.size, scale: info.scale)
-        let handle = try displayProvider.createDisplay(
-            name: AppInfo.virtualDisplayName,
-            widthPixels: pixelSize.width,
-            heightPixels: pixelSize.height,
-            scale: Int(info.scale)
-        )
-        displayHandle = handle
-
         let capture = captureFactory(region, info, captureOptions())
         capture.onError = { [weak self] error in
             Task { @MainActor [weak self] in self?.captureFailed(error) }
@@ -200,7 +188,7 @@ final class ShareSession {
         self.capture = capture
         try await capture.start()
 
-        try await mirror.present(onDisplayID: handle.displayID)
+        mirror.present(contentSize: region.rect.size)
 
         framePump = Task { [weak self] in
             for await sampleBuffer in capture.frames {
@@ -217,22 +205,12 @@ final class ShareSession {
         framePump = nil
         let captureToStop = capture
         capture = nil
-        let handleToDestroy = displayHandle
-        displayHandle = nil
 
         mirror.dismiss()
         selector.dismiss()
 
         if let captureToStop {
             await captureToStop.stop()
-        }
-
-        if let handleToDestroy {
-            do {
-                try displayProvider.destroyDisplay(handleToDestroy)
-            } catch {
-                Self.logger.error("destroying virtual display failed: \(error, privacy: .public)")
-            }
         }
     }
 
@@ -254,12 +232,6 @@ final class ShareSession {
         switch error {
         case let CaptureError.displayNotFound(displayID):
             "the source display (id \(displayID)) is gone or not capturable"
-        case let MirrorError.screenNotFound(displayID):
-            "the virtual display (id \(displayID)) never came online"
-        case let VirtualDisplayError.invalidDimensions(width, height):
-            "the region is too small to mirror (\(width)×\(height) pixels)"
-        case VirtualDisplayError.creationFailed, VirtualDisplayError.settingsRejected:
-            "macOS refused to create the virtual display"
         default:
             (error as NSError).localizedDescription
         }

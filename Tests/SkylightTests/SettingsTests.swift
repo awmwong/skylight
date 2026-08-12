@@ -102,7 +102,6 @@ final class CaptureOptionsPreferenceTests: XCTestCase {
     func testShareStartPicksUpCurrentCursorPreference() async {
         var receivedOptions: [CaptureOptions] = []
         let session = ShareSession(
-            displayProvider: FakeVirtualDisplayProvider(),
             selector: StubSelector(),
             mirror: StubMirror(),
             captureFactory: { _, _, options in
@@ -135,7 +134,8 @@ private final class StubSelector: RegionSelecting {
 }
 
 private final class StubMirror: MirrorPresenting {
-    func present(onDisplayID _: CGDirectDisplayID) async throws {}
+    var onClose: (() -> Void)?
+    func present(contentSize _: CGSize) {}
     func enqueue(_: CMSampleBuffer) {}
     func dismiss() {}
 }

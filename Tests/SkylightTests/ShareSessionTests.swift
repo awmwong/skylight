@@ -5,7 +5,6 @@ import XCTest
 
 @MainActor
 final class ShareSessionTests: XCTestCase {
-    private var displays: RecordingDisplayProvider!
     private var selector: FakeSelector!
     private var mirror: FakeMirror!
     private var captures: [FakeCapture]!
@@ -19,7 +18,6 @@ final class ShareSessionTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        displays = RecordingDisplayProvider()
         selector = FakeSelector()
         mirror = FakeMirror()
         captures = []
@@ -32,7 +30,6 @@ final class ShareSessionTests: XCTestCase {
         captureStartError: Error? = nil
     ) -> ShareSession {
         let session = ShareSession(
-            displayProvider: displays,
             selector: selector,
             mirror: mirror,
             captureFactory: { [self] region, _, _ in
@@ -66,14 +63,10 @@ final class ShareSessionTests: XCTestCase {
         try await waitUntil("session starts sharing") { session.state == .sharing }
 
         XCTAssertEqual(session.currentRegion, region)
-        // 640x360 points at 2x scale.
-        XCTAssertEqual(displays.createCalls.count, 1)
-        XCTAssertEqual(displays.createCalls[0].widthPixels, 1280)
-        XCTAssertEqual(displays.createCalls[0].heightPixels, 720)
-        XCTAssertEqual(displays.createCalls[0].scale, 2)
         XCTAssertEqual(captures.count, 1)
         XCTAssertTrue(captures[0].started)
-        XCTAssertEqual(mirror.presentedDisplayIDs, try [XCTUnwrap(displays.lastHandle?.displayID)])
+        XCTAssertEqual(mirror.presentCount, 1)
+        XCTAssertEqual(mirror.presentedSizes, [region.rect.size])
         XCTAssertTrue(selector.dismissed, "the overlay must go away once the share is live")
         XCTAssertEqual(persistedRegions, [region])
     }
@@ -85,8 +78,8 @@ final class ShareSessionTests: XCTestCase {
         selector.cancel()
 
         XCTAssertEqual(session.state, .idle)
-        XCTAssertTrue(displays.createCalls.isEmpty)
         XCTAssertTrue(captures.isEmpty)
+        XCTAssertEqual(mirror.presentCount, 0)
         XCTAssertTrue(selector.dismissed)
     }
 
@@ -107,13 +100,13 @@ final class ShareSessionTests: XCTestCase {
         try await waitUntil("permission error surfaces") { [self] in surfacedErrors.count == 1 }
 
         XCTAssertEqual(session.state, .idle)
-        XCTAssertTrue(displays.createCalls.isEmpty)
+        XCTAssertEqual(mirror.presentCount, 0)
         XCTAssertTrue(selector.dismissed)
     }
 
     // MARK: - Failure cleanup
 
-    func testCaptureStartFailureDestroysDisplayAndReturnsToIdle() async throws {
+    func testCaptureStartFailureReturnsToIdleWithoutPresenting() async throws {
         let session = makeSession(captureStartError: CaptureError.displayNotFound(1))
         session.beginSelection()
 
@@ -121,9 +114,8 @@ final class ShareSessionTests: XCTestCase {
         try await waitUntil("share failure surfaces") { [self] in surfacedErrors.count == 1 }
 
         XCTAssertEqual(session.state, .idle)
-        XCTAssertEqual(displays.createCalls.count, 1)
-        XCTAssertTrue(displays.liveDisplayIDs.isEmpty, "failed share must not leak a display")
-        XCTAssertTrue(mirror.presentedDisplayIDs.isEmpty)
+        XCTAssertEqual(mirror.presentCount, 0, "a failed capture must not show a mirror window")
+        XCTAssertTrue(mirror.dismissed)
         XCTAssertTrue(selector.dismissed)
     }
 
@@ -141,7 +133,18 @@ final class ShareSessionTests: XCTestCase {
         XCTAssertTrue(captures[0].stopped)
         XCTAssertTrue(mirror.dismissed)
         XCTAssertTrue(selector.dismissed)
-        XCTAssertTrue(displays.liveDisplayIDs.isEmpty)
+    }
+
+    func testClosingMirrorWindowStopsSharing() async throws {
+        let session = makeSession()
+        session.beginSelection()
+        selector.confirm(region)
+        try await waitUntil("session starts sharing") { session.state == .sharing }
+
+        mirror.closeWindow()
+        try await waitUntil("session returns to idle") { session.state == .idle }
+
+        XCTAssertTrue(captures[0].stopped)
     }
 
     // MARK: - Preset recall
@@ -152,7 +155,7 @@ final class ShareSessionTests: XCTestCase {
 
         XCTAssertEqual(session.state, .sharing)
         XCTAssertEqual(selector.presentCount, 0)
-        XCTAssertEqual(displays.createCalls.count, 1)
+        XCTAssertEqual(mirror.presentCount, 1)
     }
 
     func testRecalledRegionIsClampedToCurrentDisplayBounds() async {
@@ -178,8 +181,7 @@ final class ShareSessionTests: XCTestCase {
         XCTAssertEqual(session.state, .sharing)
         XCTAssertEqual(captures.count, 2)
         XCTAssertEqual(captures[0].stopCount, 1)
-        XCTAssertEqual(displays.createCalls.count, 2)
-        XCTAssertEqual(displays.liveDisplayIDs.count, 1, "the first share's display must be gone")
+        XCTAssertEqual(mirror.presentCount, 2)
         XCTAssertEqual(session.currentRegion, second)
     }
 
@@ -195,7 +197,6 @@ final class ShareSessionTests: XCTestCase {
 
         XCTAssertEqual(session.state, .idle)
         XCTAssertEqual(captures[0].stopCount, 1)
-        XCTAssertTrue(displays.liveDisplayIDs.isEmpty)
         XCTAssertTrue(surfacedErrors.isEmpty)
     }
 
@@ -212,19 +213,6 @@ final class ShareSessionTests: XCTestCase {
 
         try await waitUntil("mirror received a frame") { [self] in mirror.enqueuedCount == 1 }
         _ = session // keep the session (and its frame pump) alive until the assertion ran
-    }
-
-    // MARK: - Termination
-
-    func testTerminateDestroysAllDisplays() async throws {
-        let session = makeSession()
-        session.beginSelection()
-        selector.confirm(region)
-        try await waitUntil("session starts sharing") { session.state == .sharing }
-
-        session.terminate()
-
-        XCTAssertTrue(displays.destroyAllCalled)
     }
 
     private func waitUntil(
