@@ -6,16 +6,14 @@ Pass/Fail and notes as you go.
 
 Verified OS: macOS 26.5 (arm64).
 
-Before you start:
+Before you start, build and install to `/Applications`, then run it from
+there — macOS keeps the Screen Recording grant only for an app in a stable
+location, not a build folder:
 
 ```sh
-xcodegen generate
-xcodebuild -project Skylight.xcodeproj -scheme Skylight -configuration Debug \
-  -derivedDataPath build -destination 'platform=macOS' build
-open build/Build/Products/Debug/Skylight.app
+scripts/release.sh
+open /Applications/Skylight.app
 ```
-
-Or `scripts/run.sh`.
 
 Record results here:
 
@@ -186,7 +184,7 @@ selection starts from the last shared viewport, also after an app relaunch.
 4. Click the preset to recall it; confirm sharing starts at the saved
    region's exact position and size (no overlay needed).
 5. Stop sharing. Quit Skylight entirely (menu bar → Quit).
-6. Relaunch Skylight (`scripts/run.sh` or open the built app again).
+6. Relaunch Skylight (`open /Applications/Skylight.app`).
 7. Open the menu bar; confirm the same preset is still listed.
 8. Recall it again; confirm it still shares the correct region.
 

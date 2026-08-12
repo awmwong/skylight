@@ -43,12 +43,18 @@ Your conferencing app shares the virtual display like any physical screen.
 ## Build and run
 
 1. Install the tools: `brew install xcodegen swiftformat swiftlint`.
-2. Run `scripts/run.sh`. The script generates the Xcode project, builds the
-   app, and starts it.
+2. Run `scripts/release.sh`. The script builds the app and installs it to
+   `/Applications/Skylight.app`. Run the app from there — macOS keeps the
+   Screen Recording grant only for an app in a stable location, not a build
+   folder. (For a quick Debug build in place, use `scripts/run.sh` instead.)
 3. At first launch, macOS asks for Screen Recording permission. Grant it
    in System Settings → Privacy & Security → Screen Recording.
 4. Start the app again. macOS applies the permission only after a restart
    of the app.
+
+After a code change, run `scripts/release.sh` again. It quits the running
+copy and reinstalls; the stable signing identity keeps the existing grant,
+so macOS does not prompt again.
 
 ## Usage
 
