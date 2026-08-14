@@ -18,9 +18,20 @@ done
 VERSION="$(git describe --tags --always 2>/dev/null || echo dev)"
 INSTALL_PATH="/Applications/Skylight.app"
 
+# Stamp the bundle version from the tag. A build without a clean semver tag
+# keeps the project defaults (0.0.0).
+VERSION_SETTINGS=()
+if [[ "$VERSION" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+  VERSION_SETTINGS=(
+    "MARKETING_VERSION=${VERSION#v}"
+    "CURRENT_PROJECT_VERSION=$(git rev-list --count HEAD)"
+  )
+fi
+
 xcodegen generate
 xcodebuild -project Skylight.xcodeproj -scheme Skylight -configuration Release \
-  -derivedDataPath build -destination 'platform=macOS' build
+  -derivedDataPath build -destination 'platform=macOS' \
+  ${VERSION_SETTINGS[@]+"${VERSION_SETTINGS[@]}"} build
 
 APP="build/Build/Products/Release/Skylight.app"
 if [ ! -d "$APP" ]; then

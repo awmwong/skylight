@@ -12,6 +12,9 @@ settings:
     # signature changes every build, which resets the grant on every rebuild.
     # Pinned by SHA-1 hash because the keychain holds two copies of the cert.
     CODE_SIGN_IDENTITY: 86F2A04CDF1A255F70F91828DC8829016FFA1FE6
+    # scripts/release.sh overrides these with the release tag.
+    MARKETING_VERSION: "0.0.0"
+    CURRENT_PROJECT_VERSION: "0"
 packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
@@ -39,6 +42,8 @@ targets:
         CFBundleDisplayName: Skylight
         CFBundleIconFile: AppIcon
         LSUIElement: true
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSScreenCaptureUsageDescription: >-
           Skylight captures the screen region you select so it can mirror it
           onto the Skylight virtual display for sharing.
