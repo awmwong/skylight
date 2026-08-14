@@ -32,43 +32,49 @@ ln -sf ../../scripts/preflight.sh .git/hooks/pre-push
 The `secret-scan` GitHub Actions workflow runs gitleaks on every push as a
 backstop for pushes from a machine without the hook.
 
+## Versioning
+
+Releases follow Semantic Versioning with `vMAJOR.MINOR.PATCH` tags. The
+Conventional Commits since the last tag select the bump:
+
+- A `!` type suffix or a `BREAKING CHANGE:` footer bumps MAJOR.
+- A `feat` commit bumps MINOR.
+- All other commits bump PATCH.
+
+The first release is `v0.1.0`. Before `v1.0.0`, any release can change
+behavior. The release build stamps the tag into `CFBundleShortVersionString`.
+
 ## Cut a release
 
-1. Make sure that the working tree is clean and that `main` is up to date.
-2. Run `scripts/preflight.sh`.
-3. Run the tests:
+1. Do a manual smoke test: start a share, move the region, stop the share.
+2. Run `scripts/publish.sh`. Pass `--major`, `--minor`, or `--patch` to
+   override the computed bump.
 
-   ```sh
-   xcodegen generate
-   xcodebuild -project Skylight.xcodeproj -scheme Skylight \
-     -destination 'platform=macOS' test
-   ```
+The script refuses a dirty tree, a branch other than `main`, an out-of-sync
+`main`, or a private repo. Then it:
 
-4. Do a manual smoke test: start a share, move the region, stop the share.
-5. Tag the release and push the tag:
+1. Runs `scripts/preflight.sh` and the test suite.
+2. Computes the next version and pushes the annotated tag.
+3. Builds the zip with `scripts/release.sh --no-install`.
+4. Creates the GitHub release with generated notes and the zip.
+5. Writes `Casks/skylight.rb` in [awmwong/homebrew-tap] with the new
+   version and SHA-256, then pushes the tap.
 
-   ```sh
-   git tag v0.1.0
-   git push origin main v0.1.0
-   ```
+[awmwong/homebrew-tap]: https://github.com/awmwong/homebrew-tap
 
-6. Build the zip: `scripts/release.sh --no-install`. The zip lands in
-   `dist/Skylight-v0.1.0.zip`.
-7. Publish the release:
+Users then install with:
 
-   ```sh
-   gh release create v0.1.0 dist/Skylight-v0.1.0.zip \
-     --title "Skylight v0.1.0" --notes "<what changed>"
-   ```
+```sh
+brew install --cask --no-quarantine awmwong/tap/skylight
+```
 
 NOTE: The zip is signed with a development identity and is not notarized.
-Gatekeeper blocks it on other machines. Users must build from source, or
-right-click the app and select Open. Notarization is future work.
+Without `--no-quarantine`, Gatekeeper blocks the first launch and the user
+must right-click the app and select Open. Notarization is future work.
 
 ## One-time: flip the repository to public
 
 1. Run `scripts/preflight.sh` and make sure that it passes.
-2. Add a `LICENSE` file.
-3. Run `gh repo edit awmwong/skylight --visibility public --accept-visibility-change-consequences`.
-4. In GitHub, open Settings → Advanced Security. Turn on secret scanning
+2. Run `gh repo edit awmwong/skylight --visibility public --accept-visibility-change-consequences`.
+3. In GitHub, open Settings → Advanced Security. Turn on secret scanning
    and push protection (free for public repos).

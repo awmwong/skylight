@@ -14,4 +14,6 @@
 - `scripts/run.sh` — Debug build and launch.
 - `scripts/release.sh` — Release build, install to `/Applications`, zip to
   `dist/`.
+- `scripts/publish.sh` — semver release: tag, GitHub release, Homebrew tap
+  update. Run only when the user asks for a release.
 - Tests: `xcodegen generate && xcodebuild -project Skylight.xcodeproj -scheme Skylight -destination 'platform=macOS' test`
