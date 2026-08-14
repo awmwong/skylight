@@ -11,6 +11,23 @@ share that window. Viewers see only the selected part. This is the "share
 portion of screen" feature from Zoom, made generic — and window sharing is
 the path every conferencing app makes easy.
 
+## Quick start
+
+Install with Homebrew:
+
+```sh
+brew install --cask --no-quarantine awmwong/tap/skylight
+```
+
+The app is not notarized. Without `--no-quarantine`, Gatekeeper blocks the
+first launch, and you must right-click the app and select Open.
+
+At the first launch, macOS asks for Screen Recording permission. Grant it in
+System Settings → Privacy & Security → Screen Recording. Then start the app
+again — macOS applies the permission only after a restart of the app.
+
+To build from source instead, see [Build and run](#build-and-run).
+
 ## Features
 
 - Movable, resizable selection border to pick the region. The viewport is
