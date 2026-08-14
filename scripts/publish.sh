@@ -83,7 +83,7 @@ cask "skylight" do
   desc "Menu bar app that mirrors a screen region into a shareable window"
   homepage "https://github.com/awmwong/skylight"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "Skylight.app"
 
