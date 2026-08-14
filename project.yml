@@ -46,7 +46,7 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSScreenCaptureUsageDescription: >-
           Skylight captures the screen region you select so it can mirror it
-          onto the Skylight virtual display for sharing.
+          into the Skylight share window.
   SkylightTests:
     type: bundle.unit-test
     platform: macOS

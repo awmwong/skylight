@@ -25,6 +25,6 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>Skylight captures the screen region you select so it can mirror it onto the Skylight virtual display for sharing.</string>
+	<string>Skylight captures the screen region you select so it can mirror it into the Skylight share window.</string>
 </dict>
 </plist>
