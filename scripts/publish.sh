@@ -88,8 +88,13 @@ cask "skylight" do
   app "Skylight.app"
 
   caveats <<~EOS
-    Skylight is not notarized. macOS blocks the first launch unless you
-    install with --no-quarantine, or right-click the app and select Open.
+    Skylight is not notarized, so macOS blocks the first launch. Clear the
+    quarantine attribute:
+
+      xattr -d -r com.apple.quarantine /Applications/Skylight.app
+
+    Or open the app once, let macOS refuse, then approve Skylight in
+    System Settings > Privacy & Security.
   EOS
 end
 EOF

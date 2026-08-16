@@ -65,12 +65,14 @@ The script refuses a dirty tree, a branch other than `main`, an out-of-sync
 Users then install with:
 
 ```sh
-brew install --cask --no-quarantine awmwong/tap/skylight
+brew install --cask awmwong/tap/skylight
 ```
 
-NOTE: The zip is signed with a development identity and is not notarized.
-Without `--no-quarantine`, Gatekeeper blocks the first launch and the user
-must right-click the app and select Open. Notarization is future work.
+NOTE: The zip is signed with a development identity and is not notarized, so
+Gatekeeper blocks the first launch. The user clears the attribute with
+`xattr -d -r com.apple.quarantine /Applications/Skylight.app`, or approves the
+app in System Settings → Privacy & Security after a blocked launch. The cask
+caveats say the same. Notarization is future work.
 
 ## One-time: flip the repository to public
 
