@@ -16,11 +16,18 @@ the path every conferencing app makes easy.
 Install with Homebrew:
 
 ```sh
-brew install --cask --no-quarantine awmwong/tap/skylight
+brew install --cask awmwong/tap/skylight
 ```
 
-The app is not notarized. Without `--no-quarantine`, Gatekeeper blocks the
-first launch, and you must right-click the app and select Open.
+The app is not notarized, so Gatekeeper blocks the first launch. Clear the
+quarantine attribute:
+
+```sh
+xattr -d -r com.apple.quarantine /Applications/Skylight.app
+```
+
+Or open the app once, let macOS refuse, then go to System Settings → Privacy &
+Security and click "Open Anyway" next to the message about Skylight.
 
 At the first launch, macOS asks for Screen Recording permission. Grant it in
 System Settings → Privacy & Security → Screen Recording. Then start the app
